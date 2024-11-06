@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 from dace.sdfg.analysis.schedule_tree.sdfg_to_tree import as_schedule_tree
 from gt4py.cartesian.gtscript import (
     computation,
@@ -18,7 +18,7 @@ from dace.transformation.interstate import StateFusion
 
 domain = (3, 3, 4)
 
-stencil_factory, ijk_quantity_factory = get_factories_single_tile_orchestrated_cpu(
+stencil_factory, _ = get_factories_single_tile_orchestrated_cpu(
     domain[0], domain[1], domain[2], 0
 )
 
@@ -31,7 +31,7 @@ def double_map(in_field: FloatField, out_field: FloatField):
         out_field = in_field * 3
 
 # simple case of (currently) non-mergeable intervals (working)
-def double_map_with_different_interval(in_field: FloatField, out_field: FloatField):
+def double_map_with_different_intervals(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
 
@@ -56,7 +56,7 @@ def loop_and_map(in_field: FloatField, out_field: FloatField):
         out_field = in_field * 3
 
 # no overcomputation (yet) (working)
-def overcomputation_guard_with_if(in_field: FloatField, out_field: FloatField):
+def overcomputation(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
 
@@ -64,7 +64,7 @@ def overcomputation_guard_with_if(in_field: FloatField, out_field: FloatField):
         out_field = in_field * 3
 
 # merging IJ - keeping K loops (working)
-def mergable_or_not(in_field: FloatField, out_field: FloatField):
+def not_mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
 
@@ -75,7 +75,7 @@ def mergable_or_not(in_field: FloatField, out_field: FloatField):
         out_field = in_field * 4
 
 # merging IJ - keeping K loops (working)
-def not_mergeable(in_field: FloatField, out_field: FloatField):
+def not_mergeable_k_dependency(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
 
@@ -86,10 +86,10 @@ def not_mergeable(in_field: FloatField, out_field: FloatField):
         in_field = out_field
 
 class DaCeGT4Py_Bridge:
-    def __init__(self, stencil_factory: StencilFactory):
+    def __init__(self, stencil_factory: StencilFactory, function: Any):
         orchestrate(obj=self, config=stencil_factory.config.dace_config)
         self.stencil = stencil_factory.from_dims_halo(
-            func=double_map,
+            func=function,
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
         )
 
@@ -208,55 +208,25 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
 
 
 if __name__ == "__main__":
-    I = np.arange(domain[0] * domain[1] * domain[2], dtype=np.float64).reshape(domain)
-    O = np.zeros(domain)
+    functions = [
+        double_map,
+        double_map_with_different_intervals,
+        loop_and_map,
+        overcomputation,
+        not_mergeable_preserve_order,
+        not_mergeable_k_dependency,
+    ]
 
-    # # Trigger NDSL orchestration pipeline & grab cached SDFG
-    bridge = DaCeGT4Py_Bridge(stencil_factory)
-    bridge(I, O)
-    sdfg: dace.sdfg.SDFG = bridge.__sdfg__(I, O).csdfg.sdfg
-    sdfg.save("orig.sdfg")
-    other_schedule_tree = as_schedule_tree(sdfg)
-    schedule_tree = as_schedule_tree(sdfg)
+    for function in functions:
+        I = np.arange(domain[0] * domain[1] * domain[2], dtype=np.float64).reshape(domain)
+        O = np.zeros(domain)
 
-    #### Classic SDFG transform
-    # Strategy: fuse states out of the way, then merge maps
+        # # Trigger NDSL orchestration pipeline & grab cached SDFG
+        bridge = DaCeGT4Py_Bridge(stencil_factory, function)
+        bridge(I, O)
+        sdfg: dace.sdfg.SDFG = bridge.__sdfg__(I, O).csdfg.sdfg
+        schedule_tree = as_schedule_tree(sdfg)
 
-    # State fusion
-    # No fusion occurs because of a potential write race since
-    # it would be putting both maps under one input
-    r = sdfg.apply_transformations_repeated(
-        StateFusion,
-        print_report=True,
-        validate_all=True,
-    )
-    print(f"\nState fusion\n - Fused {r} states")
-    sdfg.save("state_fusion.sdfg")
-    
-    # No fusion occurs because maps are in different states
-    # (previous failure to merge)
-    r = sdfg.apply_transformations_repeated(
-        MapFusion,
-        print_report=True,
-        validate_all=True,
-    )
-    print(f"\nMap fusion\n - Fused {r} maps")
-    sdfg.save("map_fusion.sdfg")
-
-    #### Schedule Tree transform
-    # We demonstrate here a very basic usage of Schedule Tree to merge
-    # maps that have the same range, which should be the first pass
-    # we write
-    print("\nSchedule tree\n Before merge")
-    print(schedule_tree.as_string())
-    first_map: dace_stree.MapScope = schedule_tree.children[2]
-    second_map: dace_stree.MapScope = schedule_tree.children[3]
-    if first_map.node.range == second_map.node.range:
-        first_map.children.extend(second_map.children)
-        first_map.parent.children.remove(second_map)
-    print(" After merge")
-    print(schedule_tree.as_string())
-
-    print(" Other tree")
-    MapMerge().visit(other_schedule_tree)
-    print(other_schedule_tree.as_string())
+        MapMerge().visit(schedule_tree)
+        print(f"Schedule Tree: {function.__name__}")
+        print(schedule_tree.as_string())
