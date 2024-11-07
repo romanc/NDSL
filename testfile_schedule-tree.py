@@ -186,9 +186,13 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
 
                 mergeable = first_map.node.range == second_map.node.range
                 if mergeable:
-                    # merge, recurse into children
+                    # merge
                     first_map.children.extend(second_map.children)
                     del children[j]
+
+                    # TODO also merge containers and symbols (if applicable)
+
+                    # recurse into children
                     first_map.children = self._merge_maps(first_map.children)
                 else:
                     # we couldn't merge, try the next consecutive pair
@@ -207,14 +211,83 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
         node.children = self._merge_maps(node.children)
 
 
+class KLoopFlip(dace_stree.ScheduleNodeVisitor):
+    def _move_k_map(self, k_map: dace_stree.MapScope) -> None:
+        """Move k loop out one level at a time (as far as possible)."""
+        print("attempting to move k-loop")
+        while(isinstance(k_map.parent, dace_stree.MapScope)):
+            print("move k-loop out one level")
+            parent = k_map.parent
+            grand_parent = parent.parent
+
+            parent.children = k_map.children
+            parent.parent = k_map
+
+            k_map.parent = grand_parent
+            k_map.children = [parent]
+
+            if not isinstance(grand_parent, dace_stree.MapScope):
+                # insert k_map before parent, then delete parent
+                # from the list of children in grand_parent
+                parent_index = grand_parent.children.index(parent)
+                grand_parent.children.insert(parent_index, k_map)
+                grand_parent.children.remove(parent)
+                # grand_parent.children.append(k_map)
+            else:
+                assert grand_parent is not None
+                grand_parent.children = [k_map]    
+
+            #if grand_parent is not None:
+            #    grand_parent.children = [k_map]
+
+            #if isinstance(parent, dace_stree.ScheduleTreeScope):
+            #    parent.children.append(k_map)
+            #else:
+            #    assert grand_parent is not None
+            #    grand_parent.children = [k_map]
+        #
+        #  return k_map
+
+    def visit_MapScope(self, map_scope: dace_stree.MapScope) -> None:
+        print(f"params: {map_scope.node.params}")
+
+        map_parameter = map_scope.node.params
+        if len(map_parameter) == 1 and map_parameter[0] == "__k":
+            print("we should move this map out")
+            self._move_k_map(map_scope)
+            return
+            # return self._move_k_map(map_scope)
+            # print(f"{map_scope.as_string()}")
+            # return new_scope
+
+        for child in map_scope.children:
+            self.visit(child)
+        
+        # return map_scope
+
+#    def visit_ScheduleTreeScope(self, node: dace_stree.ScheduleTreeScope):
+#        print("visiting scope")
+
+        #is_map_scope = isinstance(node, dace_stree.MapScope)
+        #is_k_map = is_map_scope and len(node.node.params) == 1 and node.node.params[0] == "__k"
+        #if is_k_map:
+        #    print("found k-map, attempting to move it out")
+        #    return self._move_k_map(node)
+#
+        #for child in node.children:
+        #    child = self.visit(child)
+#
+        #return node
+
+
 if __name__ == "__main__":
     functions = [
         double_map,
-        double_map_with_different_intervals,
-        loop_and_map,
-        overcomputation,
-        not_mergeable_preserve_order,
-        not_mergeable_k_dependency,
+        # double_map_with_different_intervals,
+        # loop_and_map,
+        # overcomputation,
+        # not_mergeable_preserve_order,
+        # not_mergeable_k_dependency,
     ]
 
     for function in functions:
@@ -225,8 +298,35 @@ if __name__ == "__main__":
         bridge = DaCeGT4Py_Bridge(stencil_factory, function)
         bridge(I, O)
         sdfg: dace.sdfg.SDFG = bridge.__sdfg__(I, O).csdfg.sdfg
+        manual_tree = as_schedule_tree(sdfg)
         schedule_tree = as_schedule_tree(sdfg)
 
-        MapMerge().visit(schedule_tree)
-        print(f"Schedule Tree: {function.__name__}")
-        print(schedule_tree.as_string())
+        # Idea:
+        # - first, push k loop out (optional - for CPU opt)
+        # - second, merge maps (as before)
+
+        print(f"Before\n\n{manual_tree.as_string()}")
+
+        #              tile i/j     i/j map     k-map
+        manual_tree.children[2].children[0].children[0]
+        k_map = manual_tree.children[2].children[0].children[0]
+
+        ij_map = k_map.parent
+        ij_parent = ij_map.parent
+
+        ij_map.children = k_map.children
+        ij_map.parent = k_map
+        
+        k_map.parent = ij_parent
+        k_map.children = [ij_map]
+        
+        ij_parent.children = [k_map]
+
+        print(f"After\n\n{manual_tree.as_string()}")
+
+        KLoopFlip().visit(schedule_tree)
+        print(f"Flipped loops\n\n{schedule_tree.as_string()}")
+
+        # MapMerge().visit(schedule_tree)
+        # print(f"Schedule Tree: {function.__name__}")
+        # print(schedule_tree.as_string())
