@@ -13,8 +13,6 @@ from ndsl import StencilFactory, orchestrate
 import numpy as np
 import dace
 import dace.sdfg.analysis.schedule_tree.treenodes as dace_stree
-from dace.transformation.dataflow import MapFusion
-from dace.transformation.interstate import StateFusion
 
 domain = (3, 3, 4)
 
@@ -95,58 +93,6 @@ class DaCeGT4Py_Bridge:
 
     def __call__(self, in_field: FloatField, out_field: FloatField):
         self.stencil(in_field, out_field)
-
-# first (naive (and broken)) version
-class MapMergeNaive(dace_stree.ScheduleNodeTransformer):
-    def _merge_maps(self, children: dace_stree.ScheduleTreeScope | dace_stree.MapScope):
-        map_scopes = [
-            map_scope for map_scope in children if isinstance(map_scope, dace_stree.MapScope)
-        ]
-
-        if len(map_scopes) == 0:
-            # stop the recursion if there's no more maps to consider
-            return children
-        
-        if len(map_scopes) == 1:
-            map_scope = map_scopes[0]
-            map_index = children.index(map_scope)
-
-            # recurse deeper, see if we can merge more maps
-            children[map_index].children = self._merge_maps(map_scope.children)
-            return children
-
-        # We have at least two maps at this level. Attempt to merge them.
-        i = 0
-        while i < len(children):
-            first_map = children[i]
-            if not isinstance(first_map, dace_stree.MapScope):
-                i = i + 1
-                continue
-            
-            j = i + 1
-            while j < len(children):
-                second_map = children[j]
-
-                if not isinstance(second_map, dace_stree.MapScope):
-                    j = j + 1
-                    continue
-
-                if first_map.node.range == second_map.node.range:
-                    print(f"merging {first_map.node.range} with {second_map.node.range}")
-                    first_map.children.extend(second_map.children)
-                    del children[j]
-                    print(f"i={i}, j={j}, len(children)={len(children)}")
-                else:
-                    print(f"not merging {first_map.node.range} with {second_map.node.range}")
-
-                j = j + 1
-            i = i + 1
-
-        return self._merge_maps(children)
-
-    def visit_ScheduleTreeScope(self, node: dace_stree.ScheduleTreeScope):
-        node.children = self._merge_maps(node.children)
-
 
 class MapMerge(dace_stree.ScheduleNodeTransformer):
     def _merge_maps(self, children: List[dace_stree.ScheduleTreeNode]):
@@ -262,9 +208,9 @@ class KMapLoopFlip(dace_stree.ScheduleNodeVisitor):
 
 if __name__ == "__main__":
     functions = [
-        # double_map,
+        double_map,
         # double_map_with_different_intervals,
-        loop_and_map,
+        # loop_and_map,
         # overcomputation,
         # not_mergeable_preserve_order,
         # not_mergeable_k_dependency,
