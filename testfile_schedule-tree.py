@@ -1,4 +1,6 @@
+from enum import Enum
 from typing import Any, List
+from dace.properties import CodeBlock
 from dace.sdfg.analysis.schedule_tree.sdfg_to_tree import as_schedule_tree
 from gt4py.cartesian.gtscript import (
     computation,
@@ -28,7 +30,7 @@ def double_map(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(...):
         out_field = in_field * 3
 
-# simple case of (currently) non-mergeable intervals (working)
+# simple case of force-mergeable intervals (working)
 def double_map_with_different_intervals(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
@@ -45,7 +47,7 @@ def double_map_with_different_intervals(in_field: FloatField, out_field: FloatFi
 #     with computation(PARALLEL), interval(...):
 #         out_field = tmp[1, 0, 0] + in_field
 
-# this is fine (working)
+# we can't merge anything here (working)
 def loop_and_map(in_field: FloatField, out_field: FloatField):
     with computation(FORWARD), interval(...):
         out_field = in_field
@@ -53,16 +55,9 @@ def loop_and_map(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(...):
         out_field = in_field * 3
 
-# no overcomputation (yet) (working)
-def overcomputation(in_field: FloatField, out_field: FloatField):
-    with computation(PARALLEL), interval(1, None):
-        out_field = in_field
-
-    with computation(PARALLEL), interval(...):
-        out_field = in_field * 3
-
-# merging IJ - keeping K loops (working)
-def not_mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
+# TODO broken - weird shit is happening here ...
+# merging K loops with over-computation
+def mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
 
@@ -72,7 +67,8 @@ def not_mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field * 4
 
-# merging IJ - keeping K loops (working)
+# TODO: borken - weird shit is happening here ...
+# merging IJ - keeping K loops
 def not_mergeable_k_dependency(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
@@ -94,7 +90,30 @@ class DaCeGT4Py_Bridge:
     def __call__(self, in_field: FloatField, out_field: FloatField):
         self.stencil(in_field, out_field)
 
+def is_k_map(node: dace_stree.MapScope) -> bool:
+    """ Returns true iff node is a map over K. """
+    map_parameter = node.node.params
+    return len(map_parameter) == 1 and map_parameter[0] == "__k"
+
+def execution_condition(range: dace.subsets.Range) -> CodeBlock:
+    # NOTE range.ranges are inclusive, e.g.
+    #      Range(0:4) -> ranges = (start=1, stop=3, step=1)
+    start = range.ranges[0][0]
+    stop = range.ranges[0][1]
+    step = range.ranges[0][2]
+    return CodeBlock(
+        f"__k >= {start} and k <= {stop} and (__k - {start}) % {step} == 0"
+    )
+
+class MergeStrategy(Enum):
+    none = 0
+    trivial = 1
+    force_K = 2
+
 class MapMerge(dace_stree.ScheduleNodeTransformer):
+    def __init__(self, merge_strategy: MergeStrategy = MergeStrategy.trivial) -> None:
+        self.merge_strategy = merge_strategy
+
     def _merge_maps(self, children: List[dace_stree.ScheduleTreeNode]):
         # count number of maps in children
         map_scopes = [
@@ -131,13 +150,49 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
                     j += 1
                     continue
 
-                mergeable = first_map.node.range == second_map.node.range
-                if mergeable:
+                equal_map_params = first_map.node.params == second_map.node.params
+                equal_map_ranges = first_map.node.map.range == second_map.node.map.range
+                trivial_merge = equal_map_params and equal_map_ranges
+                if self.merge_strategy != MergeStrategy.none and trivial_merge:
                     # merge
+                    print(f"trivial merge: {first_map.node.map.params} in {first_map.node.map.range}")
                     first_map.children.extend(second_map.children)
                     del children[j]
 
                     # TODO also merge containers and symbols (if applicable)
+
+                    # recurse into children
+                    first_map.children = self._merge_maps(first_map.children)
+                elif self.merge_strategy == MergeStrategy.force_K and is_k_map(first_map) and is_k_map(second_map):
+                    # Only for maps in K:
+                    # force-merge by expanding the ranges
+                    # then, guard children to only run in their respective range
+                    first_range = first_map.node.map.range
+                    second_range = second_map.node.map.range
+                    merged_range = dace.subsets.Range([(
+                        f"min({first_range.ranges[0][0]}, {second_range.ranges[0][0]})",
+                        f"max({first_range.ranges[0][1]}, {second_range.ranges[0][1]})",
+                        1, # NOTE: we can optimize this to gcd later
+                    )])
+
+                    # TODO also merge containers and symbols (if applicable)
+                    merged_children: List[dace_stree.MapNode] = [
+                        dace_stree.IfScope(
+                            condition=execution_condition(first_range),
+                            children=first_map.children
+                        ),
+                        dace_stree.IfScope(
+                            condition=execution_condition(second_range),
+                            children=second_map.children
+                        ),
+                    ]
+                    first_map.children = merged_children
+
+                    # TODO we also might need to merge other stuff in the map
+                    first_map.node.map.range = merged_range
+
+                    # delete now-merged second_map
+                    del children[j]
 
                     # recurse into children
                     first_map.children = self._merge_maps(first_map.children)
@@ -208,12 +263,11 @@ class KMapLoopFlip(dace_stree.ScheduleNodeVisitor):
 
 if __name__ == "__main__":
     functions = [
-        double_map,
+        # double_map,
         # double_map_with_different_intervals,
         # loop_and_map,
-        # overcomputation,
-        # not_mergeable_preserve_order,
-        # not_mergeable_k_dependency,
+        # mergeable_preserve_order,
+        not_mergeable_k_dependency,
     ]
 
     for function in functions:
@@ -234,6 +288,6 @@ if __name__ == "__main__":
         print("\nFlipped k-map")
         print(f"{schedule_tree.as_string()}")
 
-        MapMerge().visit(schedule_tree)
+        MapMerge(MergeStrategy.force_K).visit(schedule_tree)
         print(f"\nMerged map ({function.__name__})")
         print(schedule_tree.as_string())
