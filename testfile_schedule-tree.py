@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Any, List
+from dace.memlet import Memlet
 from dace.properties import CodeBlock
 from dace.sdfg.analysis.schedule_tree.sdfg_to_tree import as_schedule_tree
 from gt4py.cartesian.gtscript import (
@@ -66,9 +67,8 @@ def mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field * 4
 
-# TODO: broken
+# force-merging the first two, but not the third (working)
 # we shouldn't merge the third k-map (in general because of data dependencies)
-# merging IJ - keeping K loops
 def not_mergeable_k_dependency(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
@@ -95,6 +95,22 @@ def is_k_map(node: dace_stree.MapScope) -> bool:
     map_parameter = node.node.params
     return len(map_parameter) == 1 and map_parameter[0] == "__k"
 
+def both_k_maps(first: dace_stree.MapScope, second: dace_stree.MapScope) -> bool:
+    return is_k_map(first) and is_k_map(second)
+
+def no_data_dependencies(first: dace_stree.MapScope, second: dace_stree.MapScope) -> bool:
+    write_collector = MemletCollector(collect_reads = False)
+    write_collector.visit(first)
+    read_collector = MemletCollector(collect_writes = False)
+    read_collector.visit(second)
+    for write in write_collector.out_memlets:
+        # Make sure we don't have read after write conditions.
+        # TODO: this can be optimized to allow non-overlapping intervals and such in the future
+        if write.data in [read.data for read in read_collector.in_memlets]:
+            print(f"Found potential read after write conflict for {write.data}")
+            return False
+    return True
+
 def execution_condition(range: dace.subsets.Range) -> CodeBlock:
     # NOTE range.ranges are inclusive, e.g.
     #      Range(0:4) -> ranges = (start=1, stop=3, step=1)
@@ -110,6 +126,40 @@ class MergeStrategy(Enum):
     trivial = 1
     force_K = 2
 
+
+class MemletCollector(dace_stree.ScheduleNodeVisitor):
+    """ Gathers in_memlets and out_memlets of TaskNodes and LibraryCalls. """
+    in_memlets: List[Memlet]
+    out_memlets: List[Memlet]
+
+    def __init__(self, *, collect_reads = True, collect_writes = True):
+        self._collect_reads = collect_reads
+        self._collect_writes = collect_writes
+
+        self.in_memlets = []
+        self.out_memlets = []
+
+    def visit_TaskletNode(self, node: dace_stree.TaskletNode) -> None:
+        if self._collect_reads:
+            self.in_memlets.extend([memlet for memlet in node.in_memlets.values()])
+        if self._collect_writes:
+            self.out_memlets.extend([memlet for memlet in node.out_memlets.values()])
+
+    def visit_LibraryCall(self, node: dace_stree.LibraryCall) -> None:
+        if self._collect_reads:
+            if isinstance(node.in_memlets, set):
+                self.in_memlets.extend(node.in_memlets)
+            else:
+                assert isinstance(node.in_memlets, dict)
+                self.in_memlets.extend([memlet for memlet in node.in_memlets.values()])
+
+        if self._collect_writes:
+            if isinstance(node.out_memlets, set):
+                self.out_memlets.extend(node.out_memlets)
+            else:
+                assert isinstance(node.out_memlets, dict)
+                self.out_memlets.extend([memlet for memlet in node.out_memlets.values()])
+
 class PushDownIfStatement(dace_stree.ScheduleNodeTransformer):
     def __init__(self, condition: CodeBlock):
         self._condition = condition
@@ -124,6 +174,7 @@ class PushDownIfStatement(dace_stree.ScheduleNodeTransformer):
 
         node.children = self.visit(node.children)
         return node
+
 
 class MapMerge(dace_stree.ScheduleNodeTransformer):
     def __init__(self, merge_strategy: MergeStrategy = MergeStrategy.trivial) -> None:
@@ -169,7 +220,6 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
                 equal_map_params = first_map.node.params == second_map.node.params
                 equal_map_ranges = first_map.node.map.range == second_map.node.map.range
                 trivial_merge = equal_map_params and equal_map_ranges
-                both_k_maps = is_k_map(first_map) and is_k_map(second_map)
                 if self.merge_strategy != MergeStrategy.none and trivial_merge:
                     # merge
                     print(f"trivial merge: {first_map.node.map.params} in {first_map.node.map.range}")
@@ -180,7 +230,9 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
 
                     # recurse into children
                     first_map.children = self._merge_maps(first_map.children)
-                elif self.merge_strategy == MergeStrategy.force_K and both_k_maps:
+                elif (self.merge_strategy == MergeStrategy.force_K and
+                    both_k_maps(first_map, second_map) and
+                    no_data_dependencies(first_map, second_map)):
                     # Only for maps in K:
                     # force-merge by expanding the ranges
                     # then, guard children to only run in their respective range
@@ -278,11 +330,11 @@ class KMapLoopFlip(dace_stree.ScheduleNodeVisitor):
 
 if __name__ == "__main__":
     functions = [
-        # double_map,
+        double_map,
         # double_map_with_different_intervals,
         # loop_and_map,
         # mergeable_preserve_order,
-        not_mergeable_k_dependency,
+        # not_mergeable_k_dependency,
     ]
 
     for function in functions:
