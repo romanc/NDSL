@@ -55,8 +55,7 @@ def loop_and_map(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(...):
         out_field = in_field * 3
 
-# TODO broken - weird shit is happening here ...
-# merging K loops with over-computation
+# merging more than two K loops with over-computation (working)
 def mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field
@@ -67,7 +66,8 @@ def mergeable_preserve_order(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         out_field = in_field * 4
 
-# TODO: borken - weird shit is happening here ...
+# TODO: broken
+# we shouldn't merge the third k-map (in general because of data dependencies)
 # merging IJ - keeping K loops
 def not_mergeable_k_dependency(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
@@ -110,6 +110,21 @@ class MergeStrategy(Enum):
     trivial = 1
     force_K = 2
 
+class PushDownIfStatement(dace_stree.ScheduleNodeTransformer):
+    def __init__(self, condition: CodeBlock):
+        self._condition = condition
+
+    def visit_MapScope(self, node: dace_stree.MapScope) -> dace_stree.MapScope:
+        all_children_are_maps = all([isinstance(child, dace_stree.MapScope) for child in node.children])
+        if not all_children_are_maps:
+            node.children = [
+                dace_stree.IfScope(condition=self._condition, children=node.children)
+            ]
+            return node
+
+        node.children = self.visit(node.children)
+        return node
+
 class MapMerge(dace_stree.ScheduleNodeTransformer):
     def __init__(self, merge_strategy: MergeStrategy = MergeStrategy.trivial) -> None:
         self.merge_strategy = merge_strategy
@@ -136,6 +151,7 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
         i = 0
         while i < len(children):
             first_map = children[i]
+
             # skip all non-maps
             if not isinstance(first_map, dace_stree.MapScope):
                 i += 1
@@ -153,6 +169,7 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
                 equal_map_params = first_map.node.params == second_map.node.params
                 equal_map_ranges = first_map.node.map.range == second_map.node.map.range
                 trivial_merge = equal_map_params and equal_map_ranges
+                both_k_maps = is_k_map(first_map) and is_k_map(second_map)
                 if self.merge_strategy != MergeStrategy.none and trivial_merge:
                     # merge
                     print(f"trivial merge: {first_map.node.map.params} in {first_map.node.map.range}")
@@ -163,7 +180,7 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
 
                     # recurse into children
                     first_map.children = self._merge_maps(first_map.children)
-                elif self.merge_strategy == MergeStrategy.force_K and is_k_map(first_map) and is_k_map(second_map):
+                elif self.merge_strategy == MergeStrategy.force_K and both_k_maps:
                     # Only for maps in K:
                     # force-merge by expanding the ranges
                     # then, guard children to only run in their respective range
@@ -175,20 +192,18 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
                         1, # NOTE: we can optimize this to gcd later
                     )])
 
-                    # TODO also merge containers and symbols (if applicable)
+                    # push IfScope down if children are just maps
+                    first_map = PushDownIfStatement(execution_condition(first_range)).visit(first_map)
+                    second_map = PushDownIfStatement(execution_condition(second_range)).visit(second_map)
                     merged_children: List[dace_stree.MapNode] = [
-                        dace_stree.IfScope(
-                            condition=execution_condition(first_range),
-                            children=first_map.children
-                        ),
-                        dace_stree.IfScope(
-                            condition=execution_condition(second_range),
-                            children=second_map.children
-                        ),
+                        *first_map.children,
+                        *second_map.children,
                     ]
                     first_map.children = merged_children
 
-                    # TODO we also might need to merge other stuff in the map
+                    # TODO also merge containers and symbols (if applicable)
+
+                    # TODO Question: is this all it needs?
                     first_map.node.map.range = merged_range
 
                     # delete now-merged second_map
