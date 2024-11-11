@@ -5,6 +5,7 @@ from dace.properties import CodeBlock
 from dace.sdfg.analysis.schedule_tree.sdfg_to_tree import as_schedule_tree
 from gt4py.cartesian.gtscript import (
     computation,
+    horizontal,
     interval,
     PARALLEL,
     FORWARD
@@ -16,6 +17,8 @@ from ndsl import StencilFactory, orchestrate
 import numpy as np
 import dace
 import dace.sdfg.analysis.schedule_tree.treenodes as dace_stree
+
+from ndsl.stencils.corners import region
 
 domain = (3, 3, 4)
 
@@ -79,6 +82,17 @@ def not_mergeable_k_dependency(in_field: FloatField, out_field: FloatField):
     with computation(PARALLEL), interval(1, None):
         in_field = out_field
 
+def horizontal_regions(in_field: FloatField, out_field: FloatField):
+    with computation(PARALLEL), interval(...):
+        out_field = in_field * 2
+
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[:, :-1]):
+            out_field = in_field
+        with horizontal(region[:-1, :]):
+            out_field = in_field
+
+
 class DaCeGT4Py_Bridge:
     def __init__(self, stencil_factory: StencilFactory, function: Any):
         orchestrate(obj=self, config=stencil_factory.config.dace_config)
@@ -89,6 +103,7 @@ class DaCeGT4Py_Bridge:
 
     def __call__(self, in_field: FloatField, out_field: FloatField):
         self.stencil(in_field, out_field)
+
 
 def is_k_map(node: dace_stree.MapScope) -> bool:
     """ Returns true iff node is a map over K. """
@@ -120,6 +135,21 @@ def execution_condition(range: dace.subsets.Range) -> CodeBlock:
     return CodeBlock(
         f"__k >= {start} and k <= {stop} and (__k - {start}) % {step} == 0"
     )
+
+def has_dynamic_memlets(first: dace_stree.MapScope, second: dace_stree.MapScope) -> bool:
+    first_collector = MemletCollector()
+    second_collector = MemletCollector()
+    first_collector.visit(first)
+    second_collector.visit(second)
+    has_dynamic_memlets = any([
+        memlet.dynamic for memlet in [
+            *first_collector.in_memlets,
+            *first_collector.out_memlets,
+            *second_collector.in_memlets,
+            *second_collector.out_memlets,
+        ]
+    ])
+    return has_dynamic_memlets
 
 class MergeStrategy(Enum):
     none = 0
@@ -160,6 +190,7 @@ class MemletCollector(dace_stree.ScheduleNodeVisitor):
                 assert isinstance(node.out_memlets, dict)
                 self.out_memlets.extend([memlet for memlet in node.out_memlets.values()])
 
+
 class PushDownIfStatement(dace_stree.ScheduleNodeTransformer):
     def __init__(self, condition: CodeBlock):
         self._condition = condition
@@ -177,8 +208,14 @@ class PushDownIfStatement(dace_stree.ScheduleNodeTransformer):
 
 
 class MapMerge(dace_stree.ScheduleNodeTransformer):
-    def __init__(self, merge_strategy: MergeStrategy = MergeStrategy.trivial) -> None:
+    def __init__(
+            self,
+            *,
+            merge_strategy: MergeStrategy = MergeStrategy.trivial,
+            allow_dynamic_memlets: bool = False,
+        ) -> None:
         self.merge_strategy = merge_strategy
+        self.allow_dynamic_memlets = allow_dynamic_memlets
 
     def _merge_maps(self, children: List[dace_stree.ScheduleTreeNode]):
         # count number of maps in children
@@ -219,8 +256,18 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
 
                 equal_map_params = first_map.node.params == second_map.node.params
                 equal_map_ranges = first_map.node.map.range == second_map.node.map.range
-                trivial_merge = equal_map_params and equal_map_ranges
-                if self.merge_strategy != MergeStrategy.none and trivial_merge:
+                trivial_merge = (
+                    self.merge_strategy != MergeStrategy.none and
+                    equal_map_params and equal_map_ranges and
+                    no_data_dependencies(first_map, second_map) and
+                    (self.allow_dynamic_memlets or not has_dynamic_memlets(first_map, second_map))
+                )
+                forced_K_merge = (
+                    self.merge_strategy == MergeStrategy.force_K and
+                    both_k_maps(first_map, second_map) and
+                    no_data_dependencies(first_map, second_map)
+                )
+                if trivial_merge:
                     # merge
                     print(f"trivial merge: {first_map.node.map.params} in {first_map.node.map.range}")
                     first_map.children.extend(second_map.children)
@@ -230,9 +277,7 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
 
                     # recurse into children
                     first_map.children = self._merge_maps(first_map.children)
-                elif (self.merge_strategy == MergeStrategy.force_K and
-                    both_k_maps(first_map, second_map) and
-                    no_data_dependencies(first_map, second_map)):
+                elif forced_K_merge:
                     # Only for maps in K:
                     # force-merge by expanding the ranges
                     # then, guard children to only run in their respective range
@@ -335,6 +380,7 @@ if __name__ == "__main__":
         # loop_and_map,
         # mergeable_preserve_order,
         # not_mergeable_k_dependency,
+        horizontal_regions,
     ]
 
     for function in functions:
@@ -355,6 +401,7 @@ if __name__ == "__main__":
         print("\nFlipped k-map")
         print(f"{schedule_tree.as_string()}")
 
-        MapMerge(MergeStrategy.force_K).visit(schedule_tree)
+        merger = MapMerge(merge_strategy=MergeStrategy.force_K)
+        merger.visit(schedule_tree)
         print(f"\nMerged map ({function.__name__})")
         print(schedule_tree.as_string())
