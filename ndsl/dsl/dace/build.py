@@ -38,6 +38,9 @@ def write_build_info(
         build_info_read.write(f"{str(layout)}\n")
         build_info_read.write(f"{str(resolution_per_tile)}\n")
 
+    sdfg.save(f"{path_to_sdfg_dir}/tmp.sdfg")
+
+
 
 ################################################
 
