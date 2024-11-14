@@ -92,17 +92,31 @@ def horizontal_regions(in_field: FloatField, out_field: FloatField):
         with horizontal(region[:-1, :]):
             out_field = in_field
 
+def tmp_field(in_field: FloatField, out_field: FloatField):
+    with computation(PARALLEL), interval(...):
+        tmp = in_field
+
+    with computation(PARALLEL), interval(...):
+        out_field = tmp * 3
 
 class DaCeGT4Py_Bridge:
-    def __init__(self, stencil_factory: StencilFactory, function: Any):
+    def __init__(self, stencil_factory: StencilFactory, functions: Any):
         orchestrate(obj=self, config=stencil_factory.config.dace_config)
-        self.stencil = stencil_factory.from_dims_halo(
-            func=function,
-            compute_dims=[X_DIM, Y_DIM, Z_DIM],
-        )
+        if not isinstance(functions, list):
+            functions = [functions]
+
+        self.stencils = []
+        for function in functions:
+            self.stencils.append(
+                stencil_factory.from_dims_halo(
+                    func=function,
+                    compute_dims=[X_DIM, Y_DIM, Z_DIM],
+                )
+            )
 
     def __call__(self, in_field: FloatField, out_field: FloatField):
-        self.stencil(in_field, out_field)
+        for stencil in self.stencils:
+            stencil(in_field, out_field)
 
 
 def is_k_map(node: dace_stree.MapScope) -> bool:
@@ -125,16 +139,6 @@ def no_data_dependencies(first: dace_stree.MapScope, second: dace_stree.MapScope
             print(f"Found potential read after write conflict for {write.data}")
             return False
     return True
-
-def execution_condition(range: dace.subsets.Range) -> CodeBlock:
-    # NOTE range.ranges are inclusive, e.g.
-    #      Range(0:4) -> ranges = (start=1, stop=3, step=1)
-    start = range.ranges[0][0]
-    stop = range.ranges[0][1]
-    step = range.ranges[0][2]
-    return CodeBlock(
-        f"__k >= {start} and k <= {stop} and (__k - {start}) % {step} == 0"
-    )
 
 def has_dynamic_memlets(first: dace_stree.MapScope, second: dace_stree.MapScope) -> bool:
     first_collector = MemletCollector()
@@ -192,15 +196,28 @@ class MemletCollector(dace_stree.ScheduleNodeVisitor):
 
 
 class PushDownIfStatement(dace_stree.ScheduleNodeTransformer):
-    def __init__(self, condition: CodeBlock):
-        self._condition = condition
+    def __init__(self, *, merged_range: dace.subsets.Range, original_range: dace.subsets.Range):
+        self._merged_range = merged_range
+        self._original_range = original_range
+
+    def _execution_condition(self) -> CodeBlock:
+        # NOTE range.ranges are inclusive, e.g.
+        #      Range(0:4) -> ranges = (start=1, stop=3, step=1)
+        range = self._original_range
+        start = range.ranges[0][0]
+        stop = range.ranges[0][1]
+        step = range.ranges[0][2]
+        return CodeBlock(
+            f"__k >= {start} and k <= {stop} and (__k - {start}) % {step} == 0"
+        )
 
     def visit_MapScope(self, node: dace_stree.MapScope) -> dace_stree.MapScope:
         all_children_are_maps = all([isinstance(child, dace_stree.MapScope) for child in node.children])
         if not all_children_are_maps:
-            node.children = [
-                dace_stree.IfScope(condition=self._condition, children=node.children)
-            ]
+            if self._merged_range != self._original_range:
+                node.children = [
+                    dace_stree.IfScope(condition=self._execution_condition(), children=node.children)
+                ]
             return node
 
         node.children = self.visit(node.children)
@@ -290,8 +307,8 @@ class MapMerge(dace_stree.ScheduleNodeTransformer):
                     )])
 
                     # push IfScope down if children are just maps
-                    first_map = PushDownIfStatement(execution_condition(first_range)).visit(first_map)
-                    second_map = PushDownIfStatement(execution_condition(second_range)).visit(second_map)
+                    first_map = PushDownIfStatement(merged_range=merged_range, original_range=first_range).visit(first_map)
+                    second_map = PushDownIfStatement(merged_range=merged_range, original_range=second_range).visit(second_map)
                     merged_children: List[dace_stree.MapNode] = [
                         *first_map.children,
                         *second_map.children,
@@ -375,12 +392,14 @@ class KMapLoopFlip(dace_stree.ScheduleNodeVisitor):
 
 if __name__ == "__main__":
     functions = [
-        double_map,
-        # double_map_with_different_intervals,
+        # double_map,
+        double_map_with_different_intervals,
+        # [double_map, double_map],
         # loop_and_map,
         # mergeable_preserve_order,
         # not_mergeable_k_dependency,
-        horizontal_regions,
+        # horizontal_regions,
+        # tmp_field,
     ]
 
     for function in functions:
@@ -393,6 +412,9 @@ if __name__ == "__main__":
         sdfg: dace.sdfg.SDFG = bridge.__sdfg__(I, O).csdfg.sdfg
         schedule_tree = as_schedule_tree(sdfg)
 
+        # print("\nSchedule tree")
+        # print(f"{schedule_tree.as_string()}")
+
         # Idea:
         # - first, push k loop out (optional - for CPU opt)
         # - second, merge maps (as before)
@@ -403,5 +425,5 @@ if __name__ == "__main__":
 
         merger = MapMerge(merge_strategy=MergeStrategy.force_K)
         merger.visit(schedule_tree)
-        print(f"\nMerged map ({function.__name__})")
+        print(f"\nMerged map ({[f.__name__ for f in function] if isinstance(function, list) else function.__name__})")
         print(schedule_tree.as_string())
