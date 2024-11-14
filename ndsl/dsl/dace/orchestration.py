@@ -99,7 +99,7 @@ def _to_gpu(sdfg: dace.SDFG):
         else:
             arr.storage = dace.StorageType.GPU_Global
 
-    # All maps will be scedule on GPU
+    # All maps will be scheduled on GPU
     for mapentry, state in topmaps:
         mapentry.schedule = dace.ScheduleType.GPU_Device
 
