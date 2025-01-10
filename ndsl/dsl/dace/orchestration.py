@@ -111,7 +111,7 @@ def _simplify(
         validate=validate,
         validate_all=validate_all,
         verbose=verbose,
-        skip=["ConstantPropagation"],
+        skip=["ConstantPropagation", "ScalarToSymbolPromotion"],
     ).apply_pass(sdfg, {})
 
 
