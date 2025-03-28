@@ -49,7 +49,7 @@ def _is_ref(sd: dace.sdfg.SDFG, aname: str):
 
 
 # ----------------------------------------------------------
-# Memory analyser from SDFG
+# Memory analyzer from SDFG
 # ----------------------------------------------------------
 @dataclass
 class ArrayReport:

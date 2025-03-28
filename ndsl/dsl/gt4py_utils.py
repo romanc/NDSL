@@ -361,7 +361,7 @@ def make_storage_dict(
     *,
     backend: str,
     dtype: DTypes = Float,
-) -> Dict[str, "Field"]:
+) -> Dict[str, Field]:
     assert names is not None, "for 4d variable storages, specify a list of names"
     if shape is None:
         shape = data.shape
