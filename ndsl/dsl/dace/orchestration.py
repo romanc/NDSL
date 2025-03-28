@@ -8,6 +8,7 @@ from dace.dtypes import DeviceType as DaceDeviceType
 from dace.dtypes import StorageType as DaceStorageType
 from dace.frontend.python.common import SDFGConvertible
 from dace.frontend.python.parser import DaceProgram
+from dace.sdfg.analysis.schedule_tree.sdfg_to_tree import as_schedule_tree
 from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
 from dace.transformation.passes.simplify import SimplifyPass
@@ -20,6 +21,8 @@ from ndsl.dsl.dace.dace_config import (
     DaCeOrchestration,
     FrozenCompiledSDFG,
 )
+from ndsl.dsl.dace.optimizations.MapMerge import MapMerge, MergeStrategy
+from ndsl.dsl.dace.optimizations.ReorderKLoop import ReorderKLoop
 from ndsl.dsl.dace.sdfg_debug_passes import (
     negative_delp_checker,
     negative_qtracers_checker,
@@ -157,6 +160,19 @@ def _build_sdfg(
 
         with DaCeProgress(config, "Simplify (2/2)"):
             _simplify(sdfg, validate=False, verbose=True)
+
+        with DaCeProgress(config, "Schedule tree"):
+            schedule_tree = as_schedule_tree(sdfg)
+
+            # Do schedule tree optimizations
+            if not config.is_gpu_backend:
+                ReorderKLoop().visit(schedule_tree)
+            MapMerge(MergeStrategy.force_K).visit(schedule_tree)
+
+            sdfg = schedule_tree.as_sdfg(validate=True, simplify=False)
+            _simplify(
+                sdfg, validate=True, verbose=True
+            )  # validate after simplification
 
         # Move all memory that can be into a pool to lower memory pressure.
         # Change Persistent memory (sub-SDFG) into Scope and flag it.
