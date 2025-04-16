@@ -1,4 +1,5 @@
 import os
+import tempfile
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import dace
@@ -21,8 +22,6 @@ from ndsl.dsl.dace.dace_config import (
     DaCeOrchestration,
     FrozenCompiledSDFG,
 )
-from ndsl.dsl.dace.optimizations.MapMerge import MapMerge, MergeStrategy
-from ndsl.dsl.dace.optimizations.ReorderKLoop import ReorderKLoop
 from ndsl.dsl.dace.sdfg_debug_passes import (
     negative_delp_checker,
     negative_qtracers_checker,
@@ -162,16 +161,19 @@ def _build_sdfg(
             _simplify(sdfg, validate=False, verbose=True)
 
         with DaCeProgress(config, "Schedule tree"):
-            schedule_tree = as_schedule_tree(sdfg)
+            temp_name = next(tempfile._get_candidate_names())  # type: ignore
+            sdfg.save(f"tmp_{temp_name}.sdfgz", compress=True)
+            loaded = dace.SDFG.from_file(f"tmp_{temp_name}.sdfgz")
+            schedule_tree = as_schedule_tree(loaded)
 
-            # Do schedule tree optimizations
-            if not config.is_gpu_backend:
-                ReorderKLoop().visit(schedule_tree)
-            MapMerge(MergeStrategy.force_K).visit(schedule_tree)
+            # # Do schedule tree optimizations
+            # if not config.is_gpu_backend:
+            #     ReorderKLoop().visit(schedule_tree)
+            # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
 
             sdfg = schedule_tree.as_sdfg(validate=True, simplify=False)
             _simplify(
-                sdfg, validate=True, verbose=True
+                sdfg, validate=True, verbose=False
             )  # validate after simplification
 
         # Move all memory that can be into a pool to lower memory pressure.
