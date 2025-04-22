@@ -1,5 +1,4 @@
 import os
-import tempfile
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import dace
@@ -161,10 +160,11 @@ def _build_sdfg(
             _simplify(sdfg, validate=False, verbose=True)
 
         with DaCeProgress(config, "Schedule tree"):
-            temp_name = next(tempfile._get_candidate_names())  # type: ignore
-            sdfg.save(f"tmp_{temp_name}.sdfgz", compress=True)
-            loaded = dace.SDFG.from_file(f"tmp_{temp_name}.sdfgz")
-            schedule_tree = as_schedule_tree(loaded)
+            # temp_name = next(tempfile._get_candidate_names())  # type: ignore
+            # sdfg.save(f"tmp_{temp_name}.sdfgz", compress=True)
+            # loaded = dace.SDFG.from_file(f"tmp_{temp_name}.sdfgz")
+            roundtrip = dace.SDFG.from_json(sdfg.to_json())
+            schedule_tree = as_schedule_tree(roundtrip)
 
             # # Do schedule tree optimizations
             # if not config.is_gpu_backend:
