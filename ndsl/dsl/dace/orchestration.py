@@ -1,4 +1,5 @@
 import os
+import tempfile
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import dace
@@ -146,7 +147,7 @@ def _build_sdfg(
                 del sdfg_kwargs[k]
 
         with DaCeProgress(config, "Simplify (1/2)"):
-            _simplify(sdfg, validate=False, verbose=True)
+            _simplify(sdfg, validate=False, verbose=False)
 
         # Perform pre-expansion fine tuning
         with DaCeProgress(config, "Split regions"):
@@ -157,14 +158,16 @@ def _build_sdfg(
             sdfg.expand_library_nodes()
 
         with DaCeProgress(config, "Simplify (2/2)"):
-            _simplify(sdfg, validate=False, verbose=True)
+            _simplify(sdfg, validate=False, verbose=False)
 
         with DaCeProgress(config, "Schedule tree"):
-            # temp_name = next(tempfile._get_candidate_names())  # type: ignore
+            temp_name = next(tempfile._get_candidate_names())  # type: ignore
             # sdfg.save(f"tmp_{temp_name}.sdfgz", compress=True)
             # loaded = dace.SDFG.from_file(f"tmp_{temp_name}.sdfgz")
             roundtrip = dace.SDFG.from_json(sdfg.to_json())
+            ndsl_log.debug("json roundtrip done")
             schedule_tree = as_schedule_tree(roundtrip)
+            ndsl_log.debug("schedule tree created")
 
             # # Do schedule tree optimizations
             # if not config.is_gpu_backend:
@@ -172,9 +175,11 @@ def _build_sdfg(
             # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
 
             sdfg = schedule_tree.as_sdfg(validate=True, simplify=False)
+            ndsl_log.debug("sdfg created")
             _simplify(
                 sdfg, validate=True, verbose=False
             )  # validate after simplification
+            ndsl_log.debug("sdfg simplified")
 
         # Move all memory that can be into a pool to lower memory pressure.
         # Change Persistent memory (sub-SDFG) into Scope and flag it.
