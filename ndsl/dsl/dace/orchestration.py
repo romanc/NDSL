@@ -105,6 +105,7 @@ def _simplify(
     validate: bool = True,
     validate_all: bool = False,
     verbose: bool = False,
+    skip: List[str] | None = None,
 ):
     """Override of sdfg.simplify to skip failing transformation
     per https://github.com/spcl/dace/issues/1328
@@ -113,6 +114,7 @@ def _simplify(
         validate=validate,
         validate_all=validate_all,
         verbose=verbose,
+        skip=skip if skip is not None else [],
     ).apply_pass(sdfg, {})
 
 
@@ -158,7 +160,9 @@ def _build_sdfg(
             sdfg.expand_library_nodes()
 
         with DaCeProgress(config, "Simplify (2/2)"):
-            _simplify(sdfg, validate=False, verbose=False)
+            _simplify(
+                sdfg, validate=False, verbose=False, skip=["InlineSDFGs", "FuseStates"]
+            )
 
         with DaCeProgress(config, "Schedule tree"):
             temp_name = next(tempfile._get_candidate_names())  # type: ignore
