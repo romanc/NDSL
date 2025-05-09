@@ -160,9 +160,7 @@ def _build_sdfg(
             sdfg.expand_library_nodes()
 
         with DaCeProgress(config, "Simplify (2/2)"):
-            _simplify(
-                sdfg, validate=False, verbose=False, skip=["InlineSDFGs", "FuseStates"]
-            )
+            _simplify(sdfg, validate=False, verbose=False)
 
         with DaCeProgress(config, "Schedule tree"):
             temp_name = next(tempfile._get_candidate_names())  # type: ignore
