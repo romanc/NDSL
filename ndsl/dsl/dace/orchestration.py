@@ -149,18 +149,20 @@ def _build_sdfg(
                 del sdfg_kwargs[k]
 
         with DaCeProgress(config, "Simplify (1/2)"):
-            _simplify(sdfg, validate=False, verbose=False)
+            _simplify(sdfg, validate=True, verbose=False)
 
         # Perform pre-expansion fine tuning
         with DaCeProgress(config, "Split regions"):
             splittable_region_expansion(sdfg, verbose=True)
+            sdfg.validate()
 
         # Expand the stencil computation Library Nodes with the right expansion
         with DaCeProgress(config, "Expand"):
             sdfg.expand_library_nodes()
+            sdfg.validate()
 
         with DaCeProgress(config, "Simplify (2/2)"):
-            _simplify(sdfg, validate=False, verbose=False)
+            _simplify(sdfg, validate=True, verbose=False)
 
         with DaCeProgress(config, "Schedule tree"):
             temp_name = next(tempfile._get_candidate_names())  # type: ignore
