@@ -22,6 +22,7 @@ from ndsl.dsl.dace.dace_config import (
     DaCeOrchestration,
     FrozenCompiledSDFG,
 )
+from ndsl.dsl.dace.optimizations.ReorderKLoop import ReorderKLoop
 from ndsl.dsl.dace.sdfg_debug_passes import (
     negative_delp_checker,
     negative_qtracers_checker,
@@ -173,10 +174,17 @@ def _build_sdfg(
             schedule_tree = as_schedule_tree(roundtrip)
             ndsl_log.debug("schedule tree created")
 
-            # # Do schedule tree optimizations
-            # if not config.is_gpu_backend:
-            #     ReorderKLoop().visit(schedule_tree)
+            with open(f"{temp_name}_0-stree-before.txt", "w") as my_file:
+                my_file.write(schedule_tree.as_string())
+
+            # Do schedule tree optimizations
+            if not config.is_gpu_backend():
+                ReorderKLoop().visit(schedule_tree)
+                ndsl_log.debug("K loops reordered.")
             # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
+
+            with open(f"{temp_name}_1-stree-reordered.txt", "w") as my_file:
+                my_file.write(schedule_tree.as_string())
 
             sdfg = schedule_tree.as_sdfg(validate=True, simplify=False)
             ndsl_log.debug("sdfg created")
