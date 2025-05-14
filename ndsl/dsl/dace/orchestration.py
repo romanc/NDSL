@@ -22,13 +22,15 @@ from ndsl.dsl.dace.dace_config import (
     DaCeOrchestration,
     FrozenCompiledSDFG,
 )
-from ndsl.dsl.dace.optimizations.ReorderKLoop import ReorderKLoop
 from ndsl.dsl.dace.sdfg_debug_passes import (
     negative_delp_checker,
     negative_qtracers_checker,
     sdfg_nan_checker,
 )
 from ndsl.dsl.dace.sdfg_opt_passes import splittable_region_expansion
+from ndsl.dsl.dace.transformation.k_loop_reorder import KLoopReorder
+from ndsl.dsl.dace.transformation.map_collapse import MapCollapse
+from ndsl.dsl.dace.transformation.map_expand import MapExpansion
 from ndsl.dsl.dace.utils import (
     DaCeProgress,
     memory_static_analysis,
@@ -167,31 +169,43 @@ def _build_sdfg(
 
         with DaCeProgress(config, "Schedule tree"):
             temp_name = next(tempfile._get_candidate_names())  # type: ignore
-            # sdfg.save(f"tmp_{temp_name}.sdfgz", compress=True)
+            sdfg.save(f"{temp_name}_0-sdfg-before.sdfgz", compress=True)
             # loaded = dace.SDFG.from_file(f"tmp_{temp_name}.sdfgz")
             roundtrip = dace.SDFG.from_json(sdfg.to_json())
             ndsl_log.debug("json roundtrip done")
-            schedule_tree = as_schedule_tree(roundtrip)
-            ndsl_log.debug("schedule tree created")
 
+            schedule_tree = as_schedule_tree(roundtrip)
             with open(f"{temp_name}_0-stree-before.txt", "w") as my_file:
                 my_file.write(schedule_tree.as_string())
+            ndsl_log.debug("schedule tree created")
 
             # Do schedule tree optimizations
-            if not config.is_gpu_backend():
-                ReorderKLoop().visit(schedule_tree)
-                ndsl_log.debug("K loops reordered.")
-            # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
-
-            with open(f"{temp_name}_1-stree-reordered.txt", "w") as my_file:
+            MapExpansion().visit(schedule_tree)
+            with open(f"{temp_name}_1-stree-expanded.txt", "w") as my_file:
                 my_file.write(schedule_tree.as_string())
 
-            sdfg = schedule_tree.as_sdfg(validate=True, simplify=False)
+            if not config.is_gpu_backend():
+                KLoopReorder().visit(schedule_tree)
+                with open(f"{temp_name}_2-stree-reordered.txt", "w") as my_file:
+                    my_file.write(schedule_tree.as_string())
+                ndsl_log.debug("K loops reordered.")
+
+            # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
+            # with open(f"{temp_name}_3-stree-merged.txt", "w") as my_file:
+            #     my_file.write(schedule_tree.as_string())
+
+            MapCollapse().visit(schedule_tree)
+            with open(f"{temp_name}_3-stree-collapsed.txt", "w") as my_file:
+                my_file.write(schedule_tree.as_string())
+
+            sdfg = schedule_tree.as_sdfg(validate=True, simplify=True)
+            sdfg.save(f"{temp_name}_3-sdfg-reordered.sdfgz")
             ndsl_log.debug("sdfg created")
-            _simplify(
-                sdfg, validate=True, verbose=False
-            )  # validate after simplification
-            ndsl_log.debug("sdfg simplified")
+
+            # _simplify(
+            #     sdfg, validate=True, verbose=False
+            # )  # validate after simplification
+            # ndsl_log.debug("sdfg simplified")
 
         # Move all memory that can be into a pool to lower memory pressure.
         # Change Persistent memory (sub-SDFG) into Scope and flag it.

@@ -1,7 +1,7 @@
 from dace.sdfg.analysis.schedule_tree import treenodes as tn
 
 
-class ReorderKLoop(tn.ScheduleNodeVisitor):
+class KLoopReorder(tn.ScheduleNodeVisitor):
     def _move_k_map_loop(self, k_map: tn.MapScope | tn.ForScope) -> None:
         """Move k-{map, loop} out, one level at a time, as far as possible."""
         while isinstance(k_map.parent, tn.MapScope):
@@ -14,7 +14,9 @@ class ReorderKLoop(tn.ScheduleNodeVisitor):
             k_map.parent = grand_parent
             k_map.children = [parent]
 
-            if not isinstance(grand_parent, tn.MapScope):
+            if len(grand_parent.children) > 1 or not isinstance(
+                grand_parent, tn.MapScope
+            ):
                 # Assumption: We are at the top (tree root) now
                 #
                 # insert k_map before parent, then delete parent
