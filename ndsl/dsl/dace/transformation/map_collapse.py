@@ -13,9 +13,9 @@ class MapCollapse(tn.ScheduleNodeTransformer):
             child_map = child.node.map
 
             # merge maps
-            current_map.params.append(*child_map.params)
-            current_map.range.ranges.append(*child_map.range.ranges)
-            current_map.range.tile_sizes.append(*child_map.range.tile_sizes)
+            current_map.params.extend(child_map.params)
+            current_map.range.ranges.extend(child_map.range.ranges)
+            current_map.range.tile_sizes.extend(child_map.range.tile_sizes)
             suffix = "".join([param for param in child_map.params])
             current_map.label = f"{current_map.label}{suffix}"
 
