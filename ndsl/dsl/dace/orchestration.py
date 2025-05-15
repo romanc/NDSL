@@ -28,9 +28,6 @@ from ndsl.dsl.dace.sdfg_debug_passes import (
     sdfg_nan_checker,
 )
 from ndsl.dsl.dace.sdfg_opt_passes import splittable_region_expansion
-from ndsl.dsl.dace.transformation.k_loop_reorder import KLoopReorder
-from ndsl.dsl.dace.transformation.map_collapse import MapCollapse
-from ndsl.dsl.dace.transformation.map_expand import MapExpansion
 from ndsl.dsl.dace.utils import (
     DaCeProgress,
     memory_static_analysis,
@@ -151,13 +148,19 @@ def _build_sdfg(
             if k in sdfg_kwargs and tup[1].transient:
                 del sdfg_kwargs[k]
 
+        sdfg.save("before-simplify.sdfgz", compress=True)
+
         with DaCeProgress(config, "Simplify (1/2)"):
             _simplify(sdfg, validate=True, verbose=False)
+
+        sdfg.save("after-simplify.sdfgz", compress=True)
 
         # Perform pre-expansion fine tuning
         with DaCeProgress(config, "Split regions"):
             splittable_region_expansion(sdfg, verbose=True)
             sdfg.validate()
+
+        sdfg.save("after-region-split.sdfgz", compress=True)
 
         # Expand the stencil computation Library Nodes with the right expansion
         with DaCeProgress(config, "Expand"):
@@ -169,9 +172,10 @@ def _build_sdfg(
 
         with DaCeProgress(config, "Schedule tree"):
             temp_name = next(tempfile._get_candidate_names())  # type: ignore
-            sdfg.save(f"{temp_name}_0-sdfg-before.sdfgz", compress=True)
+            # sdfg.save(f"{temp_name}_0-sdfg-before.sdfgz", compress=True)
             # loaded = dace.SDFG.from_file(f"tmp_{temp_name}.sdfgz")
             roundtrip = dace.SDFG.from_json(sdfg.to_json())
+            roundtrip.save(f"{temp_name}_0-sdfg-roundtrip.sdfgz", compress=True)
             ndsl_log.debug("json roundtrip done")
 
             schedule_tree = as_schedule_tree(roundtrip)
@@ -179,33 +183,28 @@ def _build_sdfg(
                 my_file.write(schedule_tree.as_string())
             ndsl_log.debug("schedule tree created")
 
-            # Do schedule tree optimizations
-            MapExpansion().visit(schedule_tree)
-            with open(f"{temp_name}_1-stree-expanded.txt", "w") as my_file:
-                my_file.write(schedule_tree.as_string())
+            # # Do schedule tree optimizations
+            # MapExpansion().visit(schedule_tree)
+            # with open(f"{temp_name}_1-stree-expanded.txt", "w") as my_file:
+            #     my_file.write(schedule_tree.as_string())
+            #
+            # if not config.is_gpu_backend():
+            #     KLoopReorder().visit(schedule_tree)
+            #     with open(f"{temp_name}_2-stree-reordered.txt", "w") as my_file:
+            #         my_file.write(schedule_tree.as_string())
+            #     ndsl_log.debug("K loops reordered.")
+            #
+            # # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
+            # # with open(f"{temp_name}_3-stree-merged.txt", "w") as my_file:
+            # #     my_file.write(schedule_tree.as_string())
 
-            if not config.is_gpu_backend():
-                KLoopReorder().visit(schedule_tree)
-                with open(f"{temp_name}_2-stree-reordered.txt", "w") as my_file:
-                    my_file.write(schedule_tree.as_string())
-                ndsl_log.debug("K loops reordered.")
-
-            # MapMerge(MergeStrategy.force_K).visit(schedule_tree)
-            # with open(f"{temp_name}_3-stree-merged.txt", "w") as my_file:
+            # MapCollapse().visit(schedule_tree)
+            # with open(f"{temp_name}_3-stree-collapsed.txt", "w") as my_file:
             #     my_file.write(schedule_tree.as_string())
 
-            MapCollapse().visit(schedule_tree)
-            with open(f"{temp_name}_3-stree-collapsed.txt", "w") as my_file:
-                my_file.write(schedule_tree.as_string())
-
             sdfg = schedule_tree.as_sdfg(validate=True, simplify=True)
-            sdfg.save(f"{temp_name}_3-sdfg-reordered.sdfgz")
-            ndsl_log.debug("sdfg created")
-
-            # _simplify(
-            #     sdfg, validate=True, verbose=False
-            # )  # validate after simplification
-            # ndsl_log.debug("sdfg simplified")
+            sdfg.save(f"{temp_name}_3-sdfg-after.sdfgz")
+            ndsl_log.debug("sdfg created and simplified")
 
         # Move all memory that can be into a pool to lower memory pressure.
         # Change Persistent memory (sub-SDFG) into Scope and flag it.
