@@ -1,6 +1,6 @@
 import abc
 import enum
-from typing import List, Optional, TypeVar
+from typing import TypeVar
 
 
 T = TypeVar("T")
@@ -41,7 +41,7 @@ class Comm(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def bcast(self, value: Optional[T], root=0) -> T:
+    def bcast(self, value: T | None, root=0) -> T:
         ...
 
     @abc.abstractmethod
@@ -61,7 +61,7 @@ class Comm(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def allgather(self, sendobj: T) -> List[T]:
+    def allgather(self, sendobj: T) -> list[T]:
         ...
 
     @abc.abstractmethod
@@ -89,7 +89,7 @@ class Comm(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def allreduce(self, sendobj: T, op: Optional[ReductionOperator] = None) -> T:
+    def allreduce(self, sendobj: T, op: ReductionOperator | None = None) -> T:
         ...
 
     @abc.abstractmethod

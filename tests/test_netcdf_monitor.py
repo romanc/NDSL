@@ -1,6 +1,5 @@
 import logging
 from datetime import timedelta
-from typing import List
 
 import cftime
 import numpy as np
@@ -48,7 +47,7 @@ def test_monitor_store_multi_rank_state(
     total_ranks = 6 * layout[0] * layout[1]
     partitioner = CubedSpherePartitioner(tile)
     shared_buffer = {}
-    monitor_list: List[NetCDFMonitor] = []
+    monitor_list: list[NetCDFMonitor] = []
 
     for rank in range(total_ranks):
         communicator = CubedSphereCommunicator(

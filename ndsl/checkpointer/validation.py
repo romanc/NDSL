@@ -1,7 +1,7 @@
 import collections
 import contextlib
 import os.path
-from typing import MutableMapping, Tuple
+from typing import MutableMapping
 
 import numpy as np
 import xarray as xr
@@ -16,7 +16,7 @@ from ndsl.checkpointer.thresholds import (
 
 
 def _clip_pace_array_to_target(
-    array: np.ndarray, target_shape: Tuple[int, ...]
+    array: np.ndarray, target_shape: tuple[int, ...]
 ) -> np.ndarray:
     """
     Clip an array from pace to align it to a target shape from target serialized data.
@@ -36,7 +36,7 @@ def _clip_pace_array_to_target(
     return _remove_symmetric_halos(array, target_shape)
 
 
-def _remove_buffer_if_needed(array: np.ndarray, target_shape: Tuple[int, ...]):
+def _remove_buffer_if_needed(array: np.ndarray, target_shape: tuple[int, ...]):
     selection = []
     # both arrays are assumed to have the same staggering and an even number of
     # halo points for each dimension, so any odd difference in points must be
@@ -51,7 +51,7 @@ def _remove_buffer_if_needed(array: np.ndarray, target_shape: Tuple[int, ...]):
     return array[tuple(selection)]
 
 
-def _remove_symmetric_halos(array: np.ndarray, target_shape: Tuple[int, ...]):
+def _remove_symmetric_halos(array: np.ndarray, target_shape: tuple[int, ...]):
     selection = []
     for array_len, target_len in zip(array.shape, target_shape):
         n_halo_clip = (array_len - target_len) // 2

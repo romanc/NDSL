@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -36,7 +36,7 @@ class BaseMetric:
     def __repr__(self) -> str:
         ...
 
-    def report(self, file_path: Optional[str] = None) -> List[str]:
+    def report(self, file_path: str | None = None) -> list[str]:
         ...
 
     def one_line_report(self) -> str:
@@ -56,7 +56,7 @@ class LegacyMetric(BaseMetric):
         reference_values: np.ndarray,
         computed_values: np.ndarray,
         eps: float,
-        ignore_near_zero_errors: Union[dict, bool],
+        ignore_near_zero_errors: dict | bool,
         near_zero: float,
     ):
         super().__init__(reference_values, computed_values)
@@ -116,7 +116,7 @@ class LegacyMetric(BaseMetric):
         else:
             return "❌ Numerical failures"
 
-    def report(self, file_path: Optional[str] = None) -> List[str]:
+    def report(self, file_path: str | None = None) -> list[str]:
         report = []
         report.append(self.one_line_report())
         if not self.check:
@@ -320,7 +320,7 @@ class MultiModalFloatMetric(BaseMetric):
             all_indices = len(self.references.flatten())
             return f"❌ Numerical failures: {failed_indices}/{all_indices} failed - metric: {metric_thresholds}"
 
-    def report(self, file_path: Optional[str] = None) -> List[str]:
+    def report(self, file_path: str | None = None) -> list[str]:
         report = []
         report.append(self.one_line_report())
         failed_indices = np.logical_not(self.success).nonzero()

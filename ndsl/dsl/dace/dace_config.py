@@ -1,6 +1,6 @@
 import enum
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import dace.config
 from dace.codegen.compiled_sdfg import CompiledSDFG
@@ -35,23 +35,23 @@ def _is_corner(rank: int, partitioner: Partitioner) -> bool:
     return False
 
 
-def _smallest_rank_bottom(x: int, y: int, layout: Tuple[int, int]):
+def _smallest_rank_bottom(x: int, y: int, layout: tuple[int, int]):
     return y == 0 and x == 1
 
 
-def _smallest_rank_top(x: int, y: int, layout: Tuple[int, int]):
+def _smallest_rank_top(x: int, y: int, layout: tuple[int, int]):
     return y == layout[1] - 1 and x == 1
 
 
-def _smallest_rank_left(x: int, y: int, layout: Tuple[int, int]):
+def _smallest_rank_left(x: int, y: int, layout: tuple[int, int]):
     return x == 0 and y == 1
 
 
-def _smallest_rank_right(x: int, y: int, layout: Tuple[int, int]):
+def _smallest_rank_right(x: int, y: int, layout: tuple[int, int]):
     return x == layout[0] - 1 and y == 1
 
 
-def _smallest_rank_middle(x: int, y: int, layout: Tuple[int, int]):
+def _smallest_rank_middle(x: int, y: int, layout: tuple[int, int]):
     return layout[0] > 1 and layout[1] > 1 and x == 1 and y == 1
 
 
@@ -151,16 +151,16 @@ class FrozenCompiledSDFG:
 class DaceConfig:
     def __init__(
         self,
-        communicator: Optional[Communicator],
+        communicator: Communicator | None,
         backend: str,
         tile_nx: int = 0,
         tile_nz: int = 0,
-        orchestration: Optional[DaCeOrchestration] = None,
+        orchestration: DaCeOrchestration | None = None,
     ):
         # Recording SDFG loaded for fast re-access
         # ToDo: DaceConfig becomes a bit more than a read-only config
         #       with this. Should be refactor into a DaceExecutor carrying a config
-        self.loaded_precompiled_SDFG: Dict[DaceProgram, FrozenCompiledSDFG] = {}
+        self.loaded_precompiled_SDFG: dict[DaceProgram, FrozenCompiledSDFG] = {}
 
         # Temporary. This is a bit too out of the ordinary for the common user.
         # We should refactor the architecture to allow for a `gtc:orchestrated:dace:X`
@@ -327,7 +327,7 @@ class DaceConfig:
     def get_sync_debug(self) -> bool:
         return dace.config.Config.get_bool("compiler", "cuda", "syncdebug")
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "_orchestrate": str(self._orchestrate.name),
             "_backend": self._backend,

@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import List
 
 from setuptools import find_namespace_packages, setup
 
@@ -24,7 +23,7 @@ extras_requires = {
     "test": test_requirements,
 }
 
-requirements: List[str] = [
+requirements: list[str] = [
     local_pkg("gt4py", "external/gt4py"),
     local_pkg("dace", "external/dace"),
     "mpi4py==3.1.5",

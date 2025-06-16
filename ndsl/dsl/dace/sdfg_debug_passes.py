@@ -1,5 +1,4 @@
 import copy
-from typing import List, Optional, Tuple
 
 import dace
 import sympy as sp
@@ -14,11 +13,11 @@ from ndsl.logging import ndsl_log
 
 def _filter_all_maps(
     sdfg: dace.SDFG,
-    whitelist: List[str] = None,
-    blacklist: List[str] = None,
+    whitelist: list[str] = None,
+    blacklist: list[str] = None,
     skip_dynamic_memlet=True,
-) -> List[
-    Tuple[dace.SDFGState, dace.nodes.AccessNode, gr.MultiConnectorEdge[dace.Memlet]]
+) -> list[
+    tuple[dace.SDFGState, dace.nodes.AccessNode, gr.MultiConnectorEdge[dace.Memlet]]
 ]:
     """
     Grab all maps outputs and filter by variable name (either black or whitelist)
@@ -34,8 +33,8 @@ def _filter_all_maps(
         [state, node, edges]
     """
 
-    checks: List[
-        Tuple[dace.SDFGState, dace.nodes.AccessNode, gr.MultiConnectorEdge[dace.Memlet]]
+    checks: list[
+        tuple[dace.SDFGState, dace.nodes.AccessNode, gr.MultiConnectorEdge[dace.Memlet]]
     ] = []
     all_maps = [
         (me, state)
@@ -81,7 +80,7 @@ def _check_node(
     check_c_code: str,
     comment_c_code: str,
     assert_out: bool = False,
-    array_range: Optional[List[Tuple[int, int, int]]] = None,
+    array_range: list[tuple[int, int, int]] | None = None,
 ):
     """
     Grab all maps outputs and filter by variable name (either black or whitelist)
@@ -268,9 +267,9 @@ def negative_qtracers_checker(sdfg: dace.SDFG):
 
 def sdfg_nan_checker(
     sdfg: dace.SDFG,
-    i_range: Optional[Tuple[int, int, int]] = None,
-    j_range: Optional[Tuple[int, int, int]] = None,
-    k_range: Optional[Tuple[int, int, int]] = None,
+    i_range: tuple[int, int, int] | None = None,
+    j_range: tuple[int, int, int] | None = None,
+    k_range: tuple[int, int, int] | None = None,
 ):
     """
     Insert a check on array after each computational map to check for NaN

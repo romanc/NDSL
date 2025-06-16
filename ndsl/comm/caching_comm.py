@@ -1,7 +1,7 @@
 import copy
 import dataclasses
 import pickle
-from typing import Any, BinaryIO, List, Optional, TypeVar
+from typing import Any, BinaryIO, TypeVar
 
 import numpy as np
 
@@ -12,7 +12,7 @@ T = TypeVar("T")
 
 
 class CachingRequestWriter(Request):
-    def __init__(self, req: Request, buffer: np.ndarray, buffer_list: List[np.ndarray]):
+    def __init__(self, req: Request, buffer: np.ndarray, buffer_list: list[np.ndarray]):
         self._req = req
         self._buffer = buffer
         self._buffer_list = buffer_list
@@ -47,10 +47,10 @@ class CachingCommData:
 
     rank: int
     size: int
-    bcast_objects: List[Any] = dataclasses.field(default_factory=list)
-    received_buffers: List[np.ndarray] = dataclasses.field(default_factory=list)
-    generic_obj_buffers: List[Any] = dataclasses.field(default_factory=list)
-    split_data: List["CachingCommData"] = dataclasses.field(default_factory=list)
+    bcast_objects: list[Any] = dataclasses.field(default_factory=list)
+    received_buffers: list[np.ndarray] = dataclasses.field(default_factory=list)
+    generic_obj_buffers: list[Any] = dataclasses.field(default_factory=list)
+    split_data: list["CachingCommData"] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         self._i_bcast = 0
@@ -109,7 +109,7 @@ class CachingCommReader(Comm):
     def Get_size(self) -> int:
         return self._data.size
 
-    def bcast(self, value: Optional[T], root=0) -> T:
+    def bcast(self, value: T | None, root=0) -> T:
         return self._data.get_bcast()
 
     def barrier(self):
@@ -147,7 +147,7 @@ class CachingCommReader(Comm):
         new_data = self._data.get_split()
         return CachingCommReader(data=new_data)
 
-    def allreduce(self, sendobj, op: Optional[ReductionOperator] = None) -> Any:
+    def allreduce(self, sendobj, op: ReductionOperator | None = None) -> Any:
         return self._data.get_generic_obj()
 
     def Allreduce(self, sendobj, recvobj, op: ReductionOperator) -> Any:
@@ -182,7 +182,7 @@ class CachingCommWriter(Comm):
     def Get_size(self) -> int:
         return self._comm.Get_size()
 
-    def bcast(self, value: Optional[T], root=0) -> T:
+    def bcast(self, value: T | None, root=0) -> T:
         result = self._comm.bcast(value=value, root=root)
         self._data.bcast_objects.append(copy.deepcopy(result))
         return result
@@ -232,7 +232,7 @@ class CachingCommWriter(Comm):
     def dump(self, file: BinaryIO):
         self._data.dump(file)
 
-    def allreduce(self, sendobj, op: Optional[ReductionOperator] = None) -> Any:
+    def allreduce(self, sendobj, op: ReductionOperator | None = None) -> Any:
         result = self._comm.allreduce(sendobj, op)
         self._data.generic_obj_buffers.append(copy.deepcopy(result))
         return result

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 from gt4py.cartesian import config as gt_config
 
@@ -55,14 +55,14 @@ def check_cached_path_exists(cache_filepath: str) -> None:
         raise RuntimeError(f"Error: Could not find caches for rank at {cache_filepath}")
 
 
-def build_cache_path(config: CompilationConfig) -> Tuple[str, str]:
+def build_cache_path(config: CompilationConfig) -> tuple[str, str]:
     """generate the GT-Cache path from the config
 
     Args:
         config (CompilationConfig): stencil-config object at post-init state
 
     Returns:
-        Tuple[str, str]: path and individual rank string
+        tuple[str, str]: path and individual rank string
     """
     if config.size == 1:
         target_rank_str = ""

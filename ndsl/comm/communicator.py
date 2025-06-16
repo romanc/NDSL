@@ -1,5 +1,5 @@
 import abc
-from typing import List, Mapping, Optional, Sequence, Tuple, Union, cast
+from typing import Mapping, Sequence, cast
 
 import numpy as np
 
@@ -45,12 +45,12 @@ class Communicator(abc.ABC):
         comm: CommABC,
         partitioner,
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ):
         self.comm = comm
         self.partitioner: Partitioner = partitioner
         self._force_cpu = force_cpu
-        self._boundaries: Optional[Mapping[int, Boundary]] = None
+        self._boundaries: Mapping[int, Boundary] | None = None
         self._last_halo_tag = 0
         self.timer: Timer = timer if timer is not None else NullTimer()
 
@@ -63,9 +63,9 @@ class Communicator(abc.ABC):
     def from_layout(
         cls,
         comm: CommABC,
-        layout: Tuple[int, int],
+        layout: tuple[int, int],
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ):
         pass
 
@@ -154,8 +154,8 @@ class Communicator(abc.ABC):
 
     def scatter(
         self,
-        send_quantity: Optional[Quantity] = None,
-        recv_quantity: Optional[Quantity] = None,
+        send_quantity: Quantity | None = None,
+        recv_quantity: Quantity | None = None,
     ) -> Quantity:
         """Transfer subtile regions of a full-tile quantity
         from the tile root rank to all subtiles.
@@ -239,7 +239,7 @@ class Communicator(abc.ABC):
 
     def gather(
         self, send_quantity: Quantity, recv_quantity: Quantity = None
-    ) -> Optional[Quantity]:
+    ) -> Quantity | None:
         """Transfer subtile regions of a full-tile quantity
         from each rank to the tile root rank.
 
@@ -250,7 +250,7 @@ class Communicator(abc.ABC):
         Returns:
             recv_quantity: quantity if on root rank, otherwise None
         """
-        result: Optional[Quantity]
+        result: Quantity | None
         if self.rank == constants.ROOT_RANK:
             with array_buffer(
                 send_quantity.np.zeros,
@@ -377,7 +377,7 @@ class Communicator(abc.ABC):
             recv_state.pop("time")
         return recv_state
 
-    def halo_update(self, quantity: Union[Quantity, List[Quantity]], n_points: int):
+    def halo_update(self, quantity: Quantity | list[Quantity], n_points: int):
         """Perform a halo update on a quantity or quantities
 
         Args:
@@ -393,7 +393,7 @@ class Communicator(abc.ABC):
         halo_updater.wait()
 
     def start_halo_update(
-        self, quantity: Union[Quantity, List[Quantity]], n_points: int
+        self, quantity: Quantity | list[Quantity], n_points: int
     ) -> HaloUpdater:
         """Start an asynchronous halo update on a quantity.
 
@@ -431,8 +431,8 @@ class Communicator(abc.ABC):
 
     def vector_halo_update(
         self,
-        x_quantity: Union[Quantity, List[Quantity]],
-        y_quantity: Union[Quantity, List[Quantity]],
+        x_quantity: Quantity | list[Quantity],
+        y_quantity: Quantity | list[Quantity],
         n_points: int,
     ):
         """Perform a halo update of a horizontal vector quantity or quantities.
@@ -460,8 +460,8 @@ class Communicator(abc.ABC):
 
     def start_vector_halo_update(
         self,
-        x_quantity: Union[Quantity, List[Quantity]],
-        y_quantity: Union[Quantity, List[Quantity]],
+        x_quantity: Quantity | list[Quantity],
+        y_quantity: Quantity | list[Quantity],
         n_points: int,
     ) -> HaloUpdater:
         """Start an asynchronous halo update of a horizontal vector quantity.
@@ -567,7 +567,7 @@ class Communicator(abc.ABC):
         req = halo_updater.start_synchronize_vector_interfaces(x_quantity, y_quantity)
         return req
 
-    def get_scalar_halo_updater(self, specifications: List[QuantityHaloSpec]):
+    def get_scalar_halo_updater(self, specifications: list[QuantityHaloSpec]):
         if len(specifications) == 0:
             raise RuntimeError("Cannot create updater with specifications list")
         if specifications[0].n_points == 0:
@@ -583,8 +583,8 @@ class Communicator(abc.ABC):
 
     def get_vector_halo_updater(
         self,
-        specifications_x: List[QuantityHaloSpec],
-        specifications_y: List[QuantityHaloSpec],
+        specifications_x: list[QuantityHaloSpec],
+        specifications_y: list[QuantityHaloSpec],
     ):
         if len(specifications_x) == 0 and len(specifications_y) == 0:
             raise RuntimeError("Cannot create updater with empty specifications list")
@@ -639,7 +639,7 @@ class TileCommunicator(Communicator):
         comm,
         partitioner: TilePartitioner,
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ):
         """Initialize a TileCommunicator.
 
@@ -658,9 +658,9 @@ class TileCommunicator(Communicator):
     def from_layout(
         cls,
         comm,
-        layout: Tuple[int, int],
+        layout: tuple[int, int],
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ) -> "TileCommunicator":
         partitioner = TilePartitioner(layout=layout)
         return cls(comm=comm, partitioner=partitioner, force_cpu=force_cpu, timer=timer)
@@ -670,7 +670,7 @@ class TileCommunicator(Communicator):
         return self
 
     def start_halo_update(
-        self, quantity: Union[Quantity, List[Quantity]], n_points: int
+        self, quantity: Quantity | list[Quantity], n_points: int
     ) -> HaloUpdater:
         """Start an asynchronous halo update on a quantity.
 
@@ -692,8 +692,8 @@ class TileCommunicator(Communicator):
 
     def start_vector_halo_update(
         self,
-        x_quantity: Union[Quantity, List[Quantity]],
-        y_quantity: Union[Quantity, List[Quantity]],
+        x_quantity: Quantity | list[Quantity],
+        y_quantity: Quantity | list[Quantity],
         n_points: int,
     ) -> HaloUpdater:
         """Start an asynchronous halo update of a horizontal vector quantity.
@@ -759,7 +759,7 @@ class CubedSphereCommunicator(Communicator):
         comm: CommABC,
         partitioner: CubedSpherePartitioner,
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ):
         """Initialize a CubedSphereCommunicator.
 
@@ -780,7 +780,7 @@ class CubedSphereCommunicator(Communicator):
                 f"comm object with only {comm.Get_size()} ranks, are we running "
                 "with mpi and the correct number of ranks?"
             )
-        self._tile_communicator: Optional[TileCommunicator] = None
+        self._tile_communicator: TileCommunicator | None = None
         self._force_cpu = force_cpu
         super(CubedSphereCommunicator, self).__init__(
             comm, partitioner, force_cpu, timer
@@ -791,9 +791,9 @@ class CubedSphereCommunicator(Communicator):
     def from_layout(
         cls,
         comm,
-        layout: Tuple[int, int],
+        layout: tuple[int, int],
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ) -> "CubedSphereCommunicator":
         partitioner = CubedSpherePartitioner(tile=TilePartitioner(layout=layout))
         return cls(comm=comm, partitioner=partitioner, force_cpu=force_cpu, timer=timer)

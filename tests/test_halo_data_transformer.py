@@ -1,5 +1,4 @@
 import copy
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -152,7 +151,7 @@ def extent(n_points, dims, nz, ny, nx):
     return return_list
 
 
-def _shape_length(shape: Tuple[int]) -> int:
+def _shape_length(shape: tuple[int]) -> int:
     """Compute linear size from slices"""
     length = 1
     for s in shape:

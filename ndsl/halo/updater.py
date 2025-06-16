@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, Mapping
 
 import numpy as np
 
@@ -17,10 +17,10 @@ from ndsl.utils import device_synchronize
 if TYPE_CHECKING:
     from ndsl.comm.communicator import Communicator
 
-_HaloSendTuple = Tuple[AsyncRequest, Buffer]
-_HaloRecvTuple = Tuple[AsyncRequest, Buffer, np.ndarray]
-_HaloRequestSendList = List[_HaloSendTuple]
-_HaloRequestRecvList = List[_HaloRecvTuple]
+_HaloSendTuple = tuple[AsyncRequest, Buffer]
+_HaloRecvTuple = tuple[AsyncRequest, Buffer, np.ndarray]
+_HaloRequestSendList = list[_HaloSendTuple]
+_HaloRequestRecvList = list[_HaloRecvTuple]
 
 
 TIMER_HALO_EX_KEY = "halo_exchange_global"
@@ -45,7 +45,7 @@ class HaloUpdater:
         self,
         comm: "Communicator",
         tag: int,
-        transformers: Dict[int, HaloDataTransformer],
+        transformers: dict[int, HaloDataTransformer],
         timer: Timer,
     ):
         """Build the updater.
@@ -61,10 +61,10 @@ class HaloUpdater:
         self._tag = tag
         self._transformers = transformers
         self._timer = timer
-        self._recv_requests: List[AsyncRequest] = []
-        self._send_requests: List[AsyncRequest] = []
-        self._inflight_x_quantities: Optional[Tuple[Quantity, ...]] = None
-        self._inflight_y_quantities: Optional[Tuple[Quantity, ...]] = None
+        self._recv_requests: list[AsyncRequest] = []
+        self._send_requests: list[AsyncRequest] = []
+        self._inflight_x_quantities: tuple[Quantity, ...] | None = None
+        self._inflight_y_quantities: tuple[Quantity, ...] | None = None
         self._finalize_on_wait = False
 
     def force_finalize_on_wait(self):
@@ -95,7 +95,7 @@ class HaloUpdater:
         specifications: Iterable[QuantityHaloSpec],
         boundaries: Iterable[Boundary],
         tag: int,
-        optional_timer: Optional[Timer] = None,
+        optional_timer: Timer | None = None,
     ) -> "HaloUpdater":
         """
         Create/retrieve as many packed buffer as needed and
@@ -131,7 +131,7 @@ class HaloUpdater:
 
         # Create the data transformers to support pack/unpack
         # One transformer per target rank
-        transformers: Dict[int, HaloDataTransformer] = {}
+        transformers: dict[int, HaloDataTransformer] = {}
         for rank, exchange_specs in exchange_specs_dict.items():
             transformers[rank] = HaloDataTransformer.get(
                 numpy_like_module, exchange_specs
@@ -148,7 +148,7 @@ class HaloUpdater:
         specifications_y: Iterable[QuantityHaloSpec],
         boundaries: Iterable[Boundary],
         tag: int,
-        optional_timer: Optional[Timer] = None,
+        optional_timer: Timer | None = None,
     ) -> "HaloUpdater":
         """
         Create/retrieve as many packed buffer as needed and queue
@@ -207,8 +207,8 @@ class HaloUpdater:
 
     def update(
         self,
-        quantities_x: List[Quantity],
-        quantities_y: Optional[List[Quantity]] = None,
+        quantities_x: list[Quantity],
+        quantities_y: list[Quantity] | None = None,
     ):
         """Exchange the data and blocks until finished."""
         self.start(quantities_x, quantities_y)
@@ -216,8 +216,8 @@ class HaloUpdater:
 
     def start(
         self,
-        quantities_x: List[Quantity],
-        quantities_y: Optional[List[Quantity]] = None,
+        quantities_x: list[Quantity],
+        quantities_y: list[Quantity] | None = None,
     ):
         """Start data exchange."""
         self._comm._device_synchronize()
@@ -310,7 +310,7 @@ class HaloUpdateRequest:
         self,
         send_data: _HaloRequestSendList,
         recv_data: _HaloRequestRecvList,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ):
         """Build a halo request.
         Args:
@@ -362,7 +362,7 @@ class VectorInterfaceHaloUpdater:
         comm,
         boundaries: Mapping[int, Boundary],
         force_cpu: bool = False,
-        timer: Optional[Timer] = None,
+        timer: Timer | None = None,
     ):
         """Initialize a CubedSphereCommunicator.
 

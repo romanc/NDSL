@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 
 from ndsl import (
@@ -27,7 +25,7 @@ def _get_factories(
     backend: str,
     orchestration: DaCeOrchestration,
     topology: str,
-) -> Tuple[StencilFactory, QuantityFactory]:
+) -> tuple[StencilFactory, QuantityFactory]:
     """Build a Stencil & Quantity factory for a combination of options.
 
     Dev Note: We don't expose this function because we want the boilerplate to remain
@@ -84,7 +82,7 @@ def _get_factories(
 
 def get_factories_single_tile_orchestrated(
     nx, ny, nz, nhalo, on_cpu: bool = True
-) -> Tuple[StencilFactory, QuantityFactory]:
+) -> tuple[StencilFactory, QuantityFactory]:
     """Build a Stencil & Quantity factory for orchestrated CPU, on a single tile topology."""
     return _get_factories(
         nx=nx,
@@ -99,7 +97,7 @@ def get_factories_single_tile_orchestrated(
 
 def get_factories_single_tile(
     nx, ny, nz, nhalo, backend: str = "numpy"
-) -> Tuple[StencilFactory, QuantityFactory]:
+) -> tuple[StencilFactory, QuantityFactory]:
     return _get_factories(
         nx=nx,
         ny=ny,

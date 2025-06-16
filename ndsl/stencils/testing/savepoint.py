@@ -1,6 +1,6 @@
 import dataclasses
 import os
-from typing import Dict, Protocol, Union
+from typing import Protocol
 
 import numpy as np
 import xarray as xr
@@ -8,17 +8,17 @@ import xarray as xr
 from ndsl.stencils.testing.grid import Grid  # type: ignore
 
 
-def dataset_to_dict(ds: xr.Dataset) -> Dict[str, Union[np.ndarray, float, int]]:
+def dataset_to_dict(ds: xr.Dataset) -> dict[str, np.ndarray | float | int]:
     return {
         name: _process_if_scalar(array.values) for name, array in ds.data_vars.items()
     }
 
 
-def _process_if_scalar(value: np.ndarray) -> Union[np.ndarray, float, int]:
+def _process_if_scalar(value: np.ndarray) -> np.ndarray | float | int:
     if len(value.shape) == 0:
         return value.max()  # trick to make sure we get the right type back
-    else:
-        return value
+
+    return value
 
 
 class DataLoader:
@@ -31,7 +31,7 @@ class DataLoader:
         name: str,
         postfix: str = "",
         i_call: int = 0,
-    ) -> Dict[str, Union[np.ndarray, float, int]]:
+    ) -> dict[str, np.ndarray | float | int]:
         return dataset_to_dict(
             xr.open_dataset(os.path.join(self._data_path, f"{name}{postfix}.nc"))
             .isel(rank=self._rank)

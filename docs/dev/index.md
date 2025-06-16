@@ -23,31 +23,31 @@ The definition IR is then transformed to GTIR (gt4py/src/gt4py/cartesian/fronten
 ```python
 class Stencil(LocNode, eve.ValidatedSymbolTableTrait):
     name: str
-    api_signature: List[Argument]
-    params: List[Decl]
-    vertical_loops: List[VerticalLoop]
-    externals: Dict[str, Literal]
-    sources: Dict[str, str]
+    api_signature: list[Argument]
+    params: list[Decl]
+    vertical_loops: list[VerticalLoop]
+    externals: dict[str, Literal]
+    sources: dict[str, str]
     docstring: str
 
     @property
-    def param_names(self) -> List[str]:
+    def param_names(self) -> list[str]:
         return [p.name for p in self.params]
 
     _validate_lvalue_dims = common.validate_lvalue_dims(VerticalLoop, FieldDecl)
 ```
 
-GTIR is also a high level IR, it contains vertical_loops loop statement, in the climate applications, the vertical loops usually need special treatment as the numerical unstanbility is a reason. The vertical_loops in GTIR as separate code block and help the following performance pass and transformation implementation. The program analysis pass/transformation is applied on the GTIR to remove the redundant nodes, and pruning the unused parameters, and data type and shape propagations of the symbols, and loop extensions.
+GTIR is also a high level IR, it contains vertical_loops loop statement, in the climate applications, the vertical loops usually need special treatment as the numerical instability is a reason. The vertical_loops in GTIR as separate code block and help the following performance pass and transformation implementation. The program analysis pass/transformation is applied on the GTIR to remove the redundant nodes, and pruning the unused parameters, and data type and shape propagations of the symbols, and loop extensions.
 
 The GTIR is then further lowered to optimization IR (OIR), which is defined as
 
 ```python
 class Stencil(LocNode, eve.ValidatedSymbolTableTrait):
     name: str
-    # TODO: fix to be List[Union[ScalarDecl, FieldDecl]]
-    params: List[Decl]
-    vertical_loops: List[VerticalLoop]
-    declarations: List[Temporary]
+    # TODO: fix to be list[Union[ScalarDecl, FieldDecl]]
+    params: list[Decl]
+    vertical_loops: list[VerticalLoop]
+    declarations: list[Temporary]
 
     _validate_dtype_is_set = common.validate_dtype_is_set()
     _validate_lvalue_dims = common.validate_lvalue_dims(VerticalLoop, FieldDecl)

@@ -1,5 +1,3 @@
-from typing import List, Optional, Tuple
-
 from dace.sdfg import SDFG
 
 from ndsl.dsl.caches.cache_location import get_cache_directory, get_cache_fullpath
@@ -23,7 +21,7 @@ def build_info_filepath() -> str:
 
 
 def write_build_info(
-    sdfg: SDFG, layout: Tuple[int, int], resolution_per_tile: List[int], backend: str
+    sdfg: SDFG, layout: tuple[int, int], resolution_per_tile: list[int], backend: str
 ):
     """Write down all relevant information on the build to identify
     it at load time."""
@@ -48,9 +46,9 @@ def write_build_info(
 def get_sdfg_path(
     daceprog_name: str,
     config: DaceConfig,
-    sdfg_file_path: Optional[str] = None,
+    sdfg_file_path: str | None = None,
     override_run_only=False,
-) -> Optional[str]:
+) -> str | None:
     """Build an SDFG path from the qualified program name or it's direct path to .sdfg
 
     Args:

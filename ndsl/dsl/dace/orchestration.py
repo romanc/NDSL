@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Sequence
 
 import dace
 import gt4py.storage
@@ -40,20 +42,24 @@ def dace_inhibitor(func: Callable) -> Callable:
     return func
 
 
-def _upload_to_device(host_data: List[Any]) -> None:
-    """Make sure any ndarrays gets uploaded to the device
+def _upload_to_device(host_data: list) -> None:
+    """Make sure all ndarrays get uploaded to the device.
 
     This will raise an assertion if cupy is not installed.
     """
-    assert cp is not None
+    if cp is None:
+        raise RuntimeError(
+            "Can't upload to GPU without cupy. Make sure cupy is installed."
+        )
+
     for i, data in enumerate(host_data):
         if isinstance(data, cp.ndarray):
             host_data[i] = cp.asarray(data)
 
 
 def _download_results_from_dace(
-    config: DaceConfig, dace_result: Optional[List[Any]], args: List[Any]
-):
+    config: DaceConfig, dace_result: list | None
+) -> list | None:
     """Move all data from DaCe memory space to GT4Py"""
     if dace_result is None:
         return None
@@ -62,9 +68,11 @@ def _download_results_from_dace(
     return [gt4py.storage.from_array(result, backend=backend) for result in dace_result]
 
 
-def _to_gpu(sdfg: dace.SDFG):
+def _to_gpu(sdfg: dace.SDFG) -> None:
     """Flag memory in SDFG to GPU.
-    Force deactivate OpenMP sections for sanity."""
+
+    Force deactivate OpenMP sections for sanity.
+    """
 
     # Gather all maps
     allmaps = [
@@ -98,7 +106,7 @@ def _simplify(
     validate: bool = True,
     validate_all: bool = False,
     verbose: bool = False,
-):
+) -> dict[str, Any]:
     """Override of sdfg.simplify to skip failing transformation
     per https://github.com/spcl/dace/issues/1328
     """
@@ -234,9 +242,7 @@ def _call_sdfg(
             if config.is_gpu_backend():
                 _upload_to_device(list(args) + list(kwargs.values()))
             res = config.loaded_precompiled_SDFG[dace_program]()
-            res = _download_results_from_dace(
-                config, res, list(args) + list(kwargs.values())
-            )
+            res = _download_results_from_dace(config, res)
         return res
 
     mode = config.get_orchestrate()
@@ -248,8 +254,8 @@ def _call_sdfg(
         # We should never hit this, it should be caught by the
         # loaded_precompiled_SDFG check above
         raise RuntimeError("Unexpected call - pre-compiled SDFG failed to load")
-    else:
-        raise NotImplementedError(f"Mode '{mode}' unimplemented at call time")
+
+    raise NotImplementedError(f"Mode '{mode}' unimplemented at call time")
 
 
 def _parse_sdfg(
@@ -257,7 +263,7 @@ def _parse_sdfg(
     config: DaceConfig,
     *args,
     **kwargs,
-) -> Optional[dace.SDFG]:
+) -> dace.SDFG | None:
     """Return an SDFG depending on cache existence.
     Either parses, load a .sdfg or load .so (as a compiled sdfg)
 
@@ -367,10 +373,10 @@ class _LazyComputepathMethod:
 
     # In order to not regenerate SDFG for the same obj.method callable
     # we cache the SDFGEnabledCallable we have already init
-    bound_callables: Dict[Tuple[int, int], "SDFGEnabledCallable"] = dict()
+    bound_callables: dict[tuple[int, int], SDFGEnabledCallable] = dict()
 
     class SDFGEnabledCallable(SDFGConvertible):
-        def __init__(self, lazy_method: "_LazyComputepathMethod", obj_to_bind):
+        def __init__(self, lazy_method: _LazyComputepathMethod, obj_to_bind):
             methodwrapper = dace.method(lazy_method.func)
             self.obj_to_bind = obj_to_bind
             self.lazy_method = lazy_method
@@ -432,9 +438,9 @@ class _LazyComputepathMethod:
 def orchestrate(
     *,
     obj: object,
-    config: Optional[DaceConfig],
+    config: DaceConfig | None,
     method_to_orchestrate: str = "__call__",
-    dace_compiletime_args: Optional[Sequence[str]] = None,
+    dace_compiletime_args: Sequence[str] | None = None,
 ):
     """
     Orchestrate a method of an object with DaCe.
@@ -524,8 +530,8 @@ def orchestrate(
 
 def orchestrate_function(
     config: DaceConfig = None,
-    dace_compiletime_args: Optional[Sequence[str]] = None,
-) -> Union[Callable[..., Any], _LazyComputepathFunction]:
+    dace_compiletime_args: Sequence[str] | None = None,
+) -> Callable[..., Any] | _LazyComputepathFunction:
     """
     Decorator orchestrating a method of an object with DaCe.
     If the model configuration doesn't demand orchestration, this won't do anything.

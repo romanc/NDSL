@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 from gt4py import storage as gt_storage
@@ -51,7 +51,7 @@ class QuantityFactory:
         numpy = StorageNumpy(backend)
         return cls(sizer, numpy)
 
-    def _backend(self) -> Optional[str]:
+    def _backend(self) -> str | None:
         try:
             return self._numpy.backend
         except AttributeError:
@@ -172,7 +172,7 @@ class QuantityFactory:
     def get_quantity_halo_spec(
         self,
         dims: Sequence[str],
-        n_halo: Optional[int] = None,
+        n_halo: int | None = None,
         dtype: type = Float,
     ) -> QuantityHaloSpec:
         """Build memory specifications for the halo update.

@@ -1,5 +1,5 @@
 import copy
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -200,7 +200,7 @@ def extent(n_points, dims, nz, ny, nx):
 @pytest.fixture
 def communicator_list(cube_partitioner: CubedSpherePartitioner):
     total_ranks = cube_partitioner.total_ranks
-    shared_buffer: Dict[str, Any] = {}
+    shared_buffer: dict[str, Any] = {}
     return_list = []
     for rank in range(total_ranks):
         return_list.append(

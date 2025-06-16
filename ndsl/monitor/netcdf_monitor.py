@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Set
 from warnings import warn
 
 import fsspec
@@ -54,9 +54,9 @@ class _ChunkedNetCDFWriter:
         self._fs = fs
         self._time_chunk_size = time_chunk_size
         self._i_time = 0
-        self._chunked: Optional[Dict[str, _TimeChunkedVariable]] = None
-        self._times: List[Any] = []
-        self._time_units: Optional[str] = None
+        self._chunked: dict[str, _TimeChunkedVariable] | None = None
+        self._times: list[Any] = []
+        self._time_units: str | None = None
 
     def append(self, state):
         ndsl_log.debug("appending at time %d", self._i_time)
@@ -131,8 +131,8 @@ class NetCDFMonitor:
         self._fs = get_fs(path)
         self._communicator = communicator
         self._time_chunk_size = time_chunk_size
-        self.__writer: Optional[_ChunkedNetCDFWriter] = None
-        self._expected_vars: Optional[Set[str]] = None
+        self.__writer: _ChunkedNetCDFWriter | None = None
+        self._expected_vars: Set[str] | None = None
         self._transfer_type = precision
         if self._transfer_type == np.float32 and get_precision() > 32:
             warn(
@@ -178,7 +178,7 @@ class NetCDFMonitor:
         if state is not None:  # we are on root rank
             self._writer.append(state)
 
-    def store_constant(self, state: Dict[str, Quantity]) -> None:
+    def store_constant(self, state: dict[str, Quantity]) -> None:
         state = self._communicator.gather_state(
             state, transfer_type=self._transfer_type
         )

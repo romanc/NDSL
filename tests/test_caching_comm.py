@@ -1,6 +1,5 @@
 import copy
 import io
-from typing import List
 
 import numpy as np
 
@@ -34,7 +33,7 @@ def test_halo_update_integration():
         for _ in range(n_ranks)
     ]
     buffer_dict = {}
-    write_communicator_list: List[CubedSphereCommunicator] = []
+    write_communicator_list: list[CubedSphereCommunicator] = []
     for i in range(n_ranks):
         write_communicator_list.append(
             CubedSphereCommunicator(
@@ -47,7 +46,7 @@ def test_halo_update_integration():
     local_comm_quantities = copy.deepcopy(quantity_list)
     perform_serial_halo_updates(write_communicator_list, local_comm_quantities)
 
-    read_communicator_list: List[CubedSphereCommunicator] = []
+    read_communicator_list: list[CubedSphereCommunicator] = []
     for i in range(n_ranks):
         file = io.BytesIO()
         write_communicator_list[i].comm.dump(file)
@@ -64,8 +63,8 @@ def test_halo_update_integration():
 
 
 def perform_serial_halo_updates(
-    communicator_list: List[CubedSphereCommunicator],
-    quantity_list: List[Quantity],
+    communicator_list: list[CubedSphereCommunicator],
+    quantity_list: list[Quantity],
 ):
     req_list = []
     for communicator, quantity in zip(communicator_list, quantity_list):

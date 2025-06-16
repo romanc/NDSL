@@ -1,6 +1,5 @@
 import os
 import re
-from typing import Optional, Tuple
 
 import f90nml
 import pytest
@@ -124,7 +123,7 @@ def data_path(pytestconfig):
     return data_path_and_namelist_filename_from_config(pytestconfig)
 
 
-def data_path_and_namelist_filename_from_config(config) -> Tuple[str, str]:
+def data_path_and_namelist_filename_from_config(config) -> tuple[str, str]:
     data_path = config.getoption("data_path")
     namelist_filename = os.path.join(data_path, "input.nml")
     return data_path, namelist_filename
@@ -228,7 +227,7 @@ def get_namelist(namelist_filename):
     return Namelist.from_f90nml(f90nml.read(namelist_filename))
 
 
-def get_config(backend: str, communicator: Optional[Communicator]):
+def get_config(backend: str, communicator: Communicator | None):
     stencil_config = StencilConfig(
         compilation_config=CompilationConfig(
             backend=backend, rebuild=False, validate_args=True

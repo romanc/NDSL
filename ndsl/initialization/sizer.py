@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict, Iterable, Sequence, Tuple
+from typing import Iterable, Sequence
 
 import ndsl.constants as constants
 from ndsl.comm.partitioner import TilePartitioner
@@ -16,16 +16,16 @@ class GridSizer:
     """length of the z compute dimension for produced arrays"""
     n_halo: int
     """number of horizontal halo points for produced arrays"""
-    extra_dim_lengths: Dict[str, int]
+    extra_dim_lengths: dict[str, int]
     """lengths of any non-x/y/z dimensions, such as land or radiation dimensions"""
 
-    def get_origin(self, dims: Sequence[str]) -> Tuple[int, ...]:
+    def get_origin(self, dims: Sequence[str]) -> tuple[int, ...]:
         raise NotImplementedError()
 
-    def get_extent(self, dims: Sequence[str]) -> Tuple[int, ...]:
+    def get_extent(self, dims: Sequence[str]) -> tuple[int, ...]:
         raise NotImplementedError()
 
-    def get_shape(self, dims: Sequence[str]) -> Tuple[int, ...]:
+    def get_shape(self, dims: Sequence[str]) -> tuple[int, ...]:
         raise NotImplementedError()
 
 
@@ -37,8 +37,8 @@ class SubtileGridSizer(GridSizer):
         ny_tile: int,
         nz: int,
         n_halo: int,
-        extra_dim_lengths: Dict[str, int],
-        layout: Tuple[int, int],
+        extra_dim_lengths: dict[str, int],
+        layout: tuple[int, int],
         tile_partitioner: TilePartitioner = None,
         tile_rank: int = 0,
     ):
@@ -125,7 +125,7 @@ class SubtileGridSizer(GridSizer):
         )
 
     @property
-    def dim_extents(self) -> Dict[str, int]:
+    def dim_extents(self) -> dict[str, int]:
         return_dict = self.extra_dim_lengths.copy()
         return_dict.update(
             {
@@ -139,17 +139,17 @@ class SubtileGridSizer(GridSizer):
         )
         return return_dict
 
-    def get_origin(self, dims: Iterable[str]) -> Tuple[int, ...]:
+    def get_origin(self, dims: Iterable[str]) -> tuple[int, ...]:
         return_list = [
             self.n_halo if dim in constants.HORIZONTAL_DIMS else 0 for dim in dims
         ]
         return tuple(return_list)
 
-    def get_extent(self, dims: Iterable[str]) -> Tuple[int, ...]:
+    def get_extent(self, dims: Iterable[str]) -> tuple[int, ...]:
         extents = self.dim_extents
         return tuple(extents[dim] for dim in dims)
 
-    def get_shape(self, dims: Iterable[str]) -> Tuple[int, ...]:
+    def get_shape(self, dims: Iterable[str]) -> tuple[int, ...]:
         shape_dict = self.extra_dim_lengths.copy()
         # must pad non-interface variables to have the same shape as interface variables
         shape_dict.update(

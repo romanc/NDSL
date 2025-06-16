@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, TypeVar, cast
+from typing import TypeVar, cast
 
 from mpi4py import MPI
 
@@ -9,7 +9,7 @@ T = TypeVar("T")
 
 
 class MPIComm(Comm):
-    _op_mapping: Dict[ReductionOperator, MPI.Op] = {
+    _op_mapping: dict[ReductionOperator, MPI.Op] = {
         ReductionOperator.OP_NULL: MPI.OP_NULL,
         ReductionOperator.MAX: MPI.MAX,
         ReductionOperator.MIN: MPI.MIN,
@@ -38,7 +38,7 @@ class MPIComm(Comm):
     def Get_size(self) -> int:
         return self._comm.Get_size()
 
-    def bcast(self, value: Optional[T], root=0) -> T:
+    def bcast(self, value: T | None, root=0) -> T:
         return self._comm.bcast(value, root=root)
 
     def barrier(self):
@@ -53,7 +53,7 @@ class MPIComm(Comm):
     def Gather(self, sendbuf, recvbuf, root=0, **kwargs):
         self._comm.Gather(sendbuf, recvbuf, root=root, **kwargs)
 
-    def allgather(self, sendobj: T) -> List[T]:
+    def allgather(self, sendobj: T) -> list[T]:
         return self._comm.allgather(sendobj)
 
     def Send(self, sendbuf, dest, tag: int = 0, **kwargs):
@@ -74,7 +74,7 @@ class MPIComm(Comm):
     def Split(self, color, key) -> "Comm":
         return self._comm.Split(color, key)
 
-    def allreduce(self, sendobj: T, op: Optional[ReductionOperator] = None) -> T:
+    def allreduce(self, sendobj: T, op: ReductionOperator | None = None) -> T:
         return self._comm.allreduce(sendobj, self._op_mapping[op])
 
     def Allreduce(self, sendobj_or_inplace: T, recvobj: T, op: ReductionOperator) -> T:

@@ -1,7 +1,6 @@
 import math
 import os
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import numpy as np
 import xarray as xr
@@ -29,7 +28,7 @@ class HybridPressureCoefficients:
     bk: np.ndarray
 
 
-def _load_ak_bk_from_file(eta_file: str) -> Tuple[np.ndarray, np.ndarray]:
+def _load_ak_bk_from_file(eta_file: str) -> tuple[np.ndarray, np.ndarray]:
     if not os.path.isfile(eta_file):
         raise ValueError(f"eta file {eta_file} does not exist")
 
@@ -44,8 +43,8 @@ def _load_ak_bk_from_file(eta_file: str) -> Tuple[np.ndarray, np.ndarray]:
 def set_hybrid_pressure_coefficients(
     km: int,
     eta_file: str,
-    ak_data: Optional[np.ndarray] = None,
-    bk_data: Optional[np.ndarray] = None,
+    ak_data: np.ndarray | None = None,
+    bk_data: np.ndarray | None = None,
 ) -> HybridPressureCoefficients:
     """
     Sets the coefficients describing the hybrid pressure coordinates.
@@ -96,7 +95,7 @@ def vertical_coordinate(eta_value) -> np.ndarray:
     return (eta_value - ETA_0) * math.pi * 0.5
 
 
-def compute_eta(ak, bk) -> Tuple[np.ndarray, np.ndarray]:
+def compute_eta(ak, bk) -> tuple[np.ndarray, np.ndarray]:
     """
     Equation (1) JRMS2006
     eta is the vertical coordinate and eta_v is an auxiliary vertical coordinate

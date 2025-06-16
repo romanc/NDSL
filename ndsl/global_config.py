@@ -1,6 +1,5 @@
 import functools
 import os
-from typing import Optional
 
 
 def getenv_bool(name: str, default: str) -> bool:
@@ -40,7 +39,7 @@ def get_validate_args() -> bool:
 # Options
 # CPU: numpy, gt:cpu_ifirst, gt:cpu_kfirst
 # GPU: gt:gpu, cuda
-_BACKEND: Optional[str] = None
+_BACKEND: str | None = None
 
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes

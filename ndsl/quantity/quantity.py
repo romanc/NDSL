@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Iterable, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Iterable, Sequence, cast
 
 import dace
 import matplotlib.pyplot as plt
@@ -31,9 +31,9 @@ class Quantity:
         data,
         dims: Sequence[str],
         units: str,
-        origin: Optional[Sequence[int]] = None,
-        extent: Optional[Sequence[int]] = None,
-        gt4py_backend: Union[str, None] = None,
+        origin: Sequence[int] | None = None,
+        extent: Sequence[int] | None = None,
+        gt4py_backend: str | None = None,
         allow_mismatch_float_precision: bool = False,
     ):
         """
@@ -84,7 +84,7 @@ class Quantity:
             assert gt4py_backend_cls is not None
             is_optimal_layout = gt4py_backend_cls.storage_info["is_optimal_layout"]
 
-            dimensions: Tuple[Union[str, int], ...] = tuple(
+            dimensions: tuple[str | int, ...] = tuple(
                 [
                     axis
                     if any(dim in axis_dims for axis_dims in constants.SPATIAL_DIMS)
@@ -132,7 +132,7 @@ class Quantity:
         data_array: xr.DataArray,
         origin: Sequence[int] = None,
         extent: Sequence[int] = None,
-        gt4py_backend: Union[str, None] = None,
+        gt4py_backend: str | None = None,
     ) -> "Quantity":
         """
         Initialize a Quantity from an xarray.DataArray.
@@ -149,7 +149,7 @@ class Quantity:
             raise ValueError("need units attribute to create Quantity from DataArray")
         return cls(
             data_array.values,
-            cast(Tuple[str], data_array.dims),
+            cast(tuple[str], data_array.dims),
             data_array.attrs["units"],
             origin=origin,
             extent=extent,
@@ -187,7 +187,7 @@ class Quantity:
             f"    extent={self.extent}\n)"
         )
 
-    def sel(self, **kwargs: Union[slice, int]) -> np.ndarray:
+    def sel(self, **kwargs: slice | int) -> np.ndarray:
         """Convenience method to perform indexing on `view` using dimension names
         without knowing dimension order.
 
@@ -200,7 +200,7 @@ class Quantity:
         """
         return self.view[tuple(kwargs.get(dim, slice(None, None)) for dim in self.dims)]
 
-    def _initialize_data(self, data, origin, gt4py_backend: str, dimensions: Tuple):
+    def _initialize_data(self, data, origin, gt4py_backend: str, dimensions: tuple):
         """Allocates an ndarray with optimal memory layout, and copies the data over."""
         storage = gt_storage.from_array(
             data,
@@ -221,7 +221,7 @@ class Quantity:
         return self.metadata.units
 
     @property
-    def gt4py_backend(self) -> Union[str, None]:
+    def gt4py_backend(self) -> str | None:
         return self.metadata.gt4py_backend
 
     @property
@@ -229,7 +229,7 @@ class Quantity:
         return dict(**self._attrs, units=self._metadata.units)
 
     @property
-    def dims(self) -> Tuple[str, ...]:
+    def dims(self) -> tuple[str, ...]:
         """names of each dimension"""
         return self.metadata.dims
 
@@ -254,7 +254,7 @@ class Quantity:
         return self._compute_domain_view[:]
 
     @property
-    def data(self) -> Union[np.ndarray, cupy.ndarray]:
+    def data(self) -> np.ndarray | cupy.ndarray:
         """the underlying array of data"""
         return self._data
 
@@ -264,12 +264,12 @@ class Quantity:
             self._data = inputData
 
     @property
-    def origin(self) -> Tuple[int, ...]:
+    def origin(self) -> tuple[int, ...]:
         """the start of the computational domain"""
         return self.metadata.origin
 
     @property
-    def extent(self) -> Tuple[int, ...]:
+    def extent(self) -> tuple[int, ...]:
         """the shape of the computational domain"""
         return self.metadata.extent
 
@@ -309,7 +309,7 @@ class Quantity:
 
     def transpose(
         self,
-        target_dims: Sequence[Union[str, Iterable[str]]],
+        target_dims: Sequence[str | Iterable[str]],
         allow_mismatch_float_precision: bool = False,
     ) -> "Quantity":
         """Change the dimension order of this Quantity.
