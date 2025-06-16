@@ -32,7 +32,7 @@ class WrappedHaloUpdater:
     @staticmethod
     def check_for_attribute(state: Any, attr: str):
         if dataclasses.is_dataclass(state):
-            return state.__getattribute__(attr)
+            return state.__getattribute__(attr)  # type: ignore
         elif isinstance(state, dict):
             return attr in state.keys()
         return False

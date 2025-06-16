@@ -17,7 +17,7 @@ os.environ["GT4PY_LITERAL_PRECISION"] = str(NDSL_GLOBAL_PRECISION)
 
 
 # Set cache names for default gt backends workflow
-import gt4py.cartesian.config  # noqa: E402
+import gt4py.cartesian.config  # noqa: E402 module level import not at top of file
 
 
 if MPI is not None:

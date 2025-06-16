@@ -29,7 +29,6 @@ is not provided.
 
 
 def set_answers(eta_file):
-
     """
     Read in the expected values of ak and bk
     arrays from the input eta NetCDF files.
@@ -56,7 +55,6 @@ def write_non_mono_eta_file(in_eta_file, out_eta_file):
 
 @pytest.mark.parametrize("km", [79, 91])
 def test_set_hybrid_pressure_coefficients_correct(km):
-
     """This test checks to see that the ak and bk arrays
     are read-in correctly and are stored as
     expected.  Both values of km=79 and km=91 are
@@ -114,7 +112,6 @@ def test_set_hybrid_pressure_coefficients_correct(km):
 
 
 def test_set_hybrid_pressure_coefficients_nofile():
-
     """
     This test checks to see that the program
     fails when the eta_file is not specified
@@ -163,7 +160,6 @@ def test_set_hybrid_pressure_coefficients_nofile():
 
 
 def test_set_hybrid_pressure_coefficients_not_mono():
-
     """
     This test checks to see that the program
     fails when the computed eta values increase
