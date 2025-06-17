@@ -43,8 +43,8 @@ def as_numpy(
 
     if isinstance(value, dict):
         return {k: _convert(v) for k, v in value.items()}
-    else:
-        return _convert(value)
+
+    return _convert(value)
 
 
 class TranslateFortranData2Py:

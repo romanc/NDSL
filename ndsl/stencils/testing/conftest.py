@@ -157,16 +157,16 @@ def is_parallel_test(test_name):
     test_class = get_test_class(test_name)
     if test_class is None:
         return False
-    else:
-        return issubclass(test_class, ParallelTranslate)
+
+    return issubclass(test_class, ParallelTranslate)
 
 
 def get_test_class_instance(test_name, grid, namelist, stencil_factory):
     translate_class = get_test_class(test_name)
     if translate_class is None:
         return None
-    else:
-        return translate_class(grid, namelist, stencil_factory)
+
+    return translate_class(grid, namelist, stencil_factory)
 
 
 def get_all_savepoint_names(metafunc, data_path):
@@ -214,8 +214,8 @@ def get_ranks(metafunc, layout):
         else:
             raise NotImplementedError(f"Topology {topology} is unknown.")
         return range(total_ranks)
-    else:
-        return [int(only_rank)]
+
+    return [int(only_rank)]
 
 
 def get_savepoint_restriction(metafunc):

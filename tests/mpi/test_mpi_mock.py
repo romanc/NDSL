@@ -193,8 +193,8 @@ def gather(comm, numpy):
     if rank == 0:
         assert numpy.all(recvbuf == numpy.arange(size)[:, None])
         return list(recvbuf)
-    else:
-        return recvbuf
+
+    return recvbuf
 
 
 @worker()

@@ -42,8 +42,8 @@ def layout():
         ranks_per_tile = size // 6
         ranks_per_edge = int(ranks_per_tile**0.5)
         return (ranks_per_edge, ranks_per_edge)
-    else:
-        return (1, 1)
+
+    return (1, 1)
 
 
 @pytest.fixture

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Union
 
 import cftime
 import xarray as xr
@@ -39,7 +40,7 @@ class ZarrMonitor:
 
     def __init__(
         self,
-        store: str | "zarr.storage.MutableMapping",
+        store: Union[str, "zarr.storage.MutableMapping"],
         partitioner: Partitioner,
         mode: str = "w",
         mpi_comm=DummyComm(),
@@ -159,8 +160,8 @@ class _ZarrVariableWriter:
     def _get_array_dims(self):
         if self.array is None:
             raise ValueError("Array not yet set, must call .store first.")
-        else:
-            return self.array.attrs.get("_ARRAY_DIMENSIONS")
+
+        return self.array.attrs.get("_ARRAY_DIMENSIONS")
 
     def _init_zarr(self, quantity):
         if self.rank == 0:
@@ -188,8 +189,8 @@ class _ZarrVariableWriter:
         self._check_dims(quantity)
         if self._get_array_dims() != self._get_quantity_dims(quantity):
             return quantity.transpose(self._get_array_dims()[2:])
-        else:
-            return quantity
+
+        return quantity
 
     def _check_dims(self, quantity):
         quantity_dims = self._get_quantity_dims(quantity)

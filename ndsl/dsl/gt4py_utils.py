@@ -418,13 +418,13 @@ def asarray(array, to_type=np.ndarray, dtype=None, order=None):
         if to_type is np.ndarray:
             order = "F" if order is None else order
             return cp.asnumpy(array, order=order)
-        else:
-            return cp.asarray(array, dtype, order)
+
+        return cp.asarray(array, dtype, order)
     elif isinstance(array, list):
         if to_type is np.ndarray:
             return np.asarray(array, dtype, order)
-        else:
-            return cp.asarray(array, dtype, order)
+
+        return cp.asarray(array, dtype, order)
     if cp and (
         isinstance(array, memoryview)
         or (
@@ -435,13 +435,13 @@ def asarray(array, to_type=np.ndarray, dtype=None, order=None):
         if to_type is np.ndarray:
             order = "F" if order is None else order
             return cp.asnumpy(array, order=order)
-        else:
-            return cp.asarray(array, dtype, order)
+
+        return cp.asarray(array, dtype, order)
     else:
         if to_type is np.ndarray:
             return np.asarray(array, dtype, order)
-        else:
-            return cp.asarray(array, dtype, order)
+
+        return cp.asarray(array, dtype, order)
 
 
 def is_gpu_backend(backend: str) -> bool:
@@ -491,11 +491,11 @@ def reshape(array, new_shape):
             # Upcast using repeat...
             if old_dims == 2:  # IJ -> IJK
                 return repeat(array[:, :, np.newaxis], new_shape[2], axis=2)
-            else:  # K -> IJK
-                arr_2d = repeat(array[:, np.newaxis], new_shape[1], axis=1)
-                return repeat(arr_2d[:, :, np.newaxis], new_shape[2], axis=2)
-        else:
-            return array.reshape(new_shape)
+            # K -> IJK
+            arr_2d = repeat(array[:, np.newaxis], new_shape[1], axis=1)
+            return repeat(arr_2d[:, :, np.newaxis], new_shape[2], axis=2)
+
+        return array.reshape(new_shape)
     return array
 
 

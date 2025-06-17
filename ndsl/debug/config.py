@@ -34,12 +34,10 @@ ndsl_debugger = None
 def _set_debugger():
     config = os.getenv("NDSL_DEBUG_CONFIG", "")
     if not os.path.exists(config):
-        if config != "":
-            ndsl_log.warning(
-                f"NDSL_DEBUG_CONFIG set but path {config} does not exists."
-            )
-        else:
+        if config == "":
             return
+        ndsl_log.warning(f"NDSL_DEBUG_CONFIG set but path {config} does not exists.")
+
     with open(config) as file:
         config_dict = yaml.load(file.read(), Loader=yaml.SafeLoader)
     global ndsl_debugger

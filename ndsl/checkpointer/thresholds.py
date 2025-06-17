@@ -46,8 +46,8 @@ def cast_to_ndarray(array: ArrayLike) -> np.ndarray:
         array = array.data
     if isinstance(array.data, np.ndarray):
         return array.data
-    else:
-        return array
+
+    return array
 
 
 class ThresholdCalibrationCheckpointer(Checkpointer):

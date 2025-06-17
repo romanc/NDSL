@@ -142,8 +142,8 @@ def map_keys(old_dict, old_keys_to_new):
 def prepend_label(filename, label=None):
     if label is not None and len(label) > 0:
         return f"{label}.{filename}"
-    else:
-        return filename
+
+    return filename
 
 
 def load_partial_state_from_restart_file(

@@ -287,6 +287,7 @@ def _parse_sdfg(
             # compiled SDFG from the compiling rank
             return None
 
+        breakpoint()
         with DaCeProgress(config, f"Parse code of {dace_program.name} to SDFG"):
             sdfg = dace_program.to_sdfg(
                 *args,

@@ -18,22 +18,22 @@ def identify_code_path(
                 return FV3CodePath.BottomLeft
             if partitioner.tile.on_tile_right(rank):
                 return FV3CodePath.BottomRight
-            else:
-                return FV3CodePath.Bottom
+
+            return FV3CodePath.Bottom
         if partitioner.tile.on_tile_top(rank):
             if partitioner.tile.on_tile_left(rank):
                 return FV3CodePath.TopLeft
             if partitioner.tile.on_tile_right(rank):
                 return FV3CodePath.TopRight
-            else:
-                return FV3CodePath.Top
+
+            return FV3CodePath.Top
         else:
             if partitioner.tile.on_tile_left(rank):
                 return FV3CodePath.Left
             if partitioner.tile.on_tile_right(rank):
                 return FV3CodePath.Right
-            else:
-                return FV3CodePath.Center
+
+            return FV3CodePath.Center
 
 
 def get_cache_fullpath(code_path: FV3CodePath) -> str:

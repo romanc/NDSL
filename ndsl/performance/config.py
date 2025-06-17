@@ -30,11 +30,11 @@ class PerformanceConfig:
     def build(self, comm: Comm) -> AbstractPerformanceCollector:
         if self.collect_performance:
             return PerformanceCollector(experiment_name=self.experiment_name, comm=comm)
-        else:
-            return NullPerformanceCollector()
+
+        return NullPerformanceCollector()
 
     def build_profiler(self):
         if self.collect_cProfile:
             return Profiler()
-        else:
-            return NullProfiler()
+
+        return NullProfiler()

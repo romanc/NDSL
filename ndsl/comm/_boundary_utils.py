@@ -36,21 +36,21 @@ def _shift_boundary_slice(dim, origin, extent, boundary_type, slice_object):
         return bound_default_slice(
             slice(start, stop, slice_object.step), origin, origin + extent
         )
-    else:
-        return slice_object + start_offset  # usually an integer
+
+    return slice_object + start_offset  # usually an integer
 
 
 def _get_offset(boundary_type, dim, origin, extent):
     if boundary_type is constants.INTERIOR:
         return origin, origin + extent
-    else:
-        boundary_at_start = boundary_at_start_of_dim(boundary_type, dim)
-        if boundary_at_start is None:  # default is to index within compute domain
-            return origin, origin
-        elif boundary_at_start:
-            return origin, origin
-        else:
-            return origin + extent, origin + extent
+
+    boundary_at_start = boundary_at_start_of_dim(boundary_type, dim)
+    if boundary_at_start is None:  # default is to index within compute domain
+        return origin, origin
+    if boundary_at_start:
+        return origin, origin
+
+    return origin + extent, origin + extent
 
 
 @functools.lru_cache(maxsize=None)

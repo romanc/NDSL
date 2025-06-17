@@ -1,7 +1,7 @@
 import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import Sequence
+from typing import Optional, Sequence
 from uuid import UUID, uuid1
 
 import numpy as np
@@ -576,8 +576,8 @@ class HaloDataTransformerGPU(HaloDataTransformer):
         stream: "cp.cuda.Stream"
         x_send_indices: "cp.ndarray"
         x_recv_indices: "cp.ndarray"
-        y_send_indices: "cp.ndarray" | None
-        y_recv_indices: "cp.ndarray" | None
+        y_send_indices: Optional["cp.ndarray"]
+        y_recv_indices: Optional["cp.ndarray"]
 
     def __init__(
         self,
@@ -682,8 +682,8 @@ class HaloDataTransformerGPU(HaloDataTransformer):
     def _get_stream(self, stream) -> "cp.cuda.stream":
         if self._CODE_PATH_DEVICE_WIDE_SYNC:
             return cp.cuda.Stream.null
-        else:
-            return stream
+
+        return stream
 
     def async_pack(
         self,

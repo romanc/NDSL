@@ -352,8 +352,8 @@ def on_c_grid(x_quantity, y_quantity):
         or constants.X_INTERFACE_DIM not in y_quantity.dims
     ):
         return False
-    else:
-        return True
+
+    return True
 
 
 class VectorInterfaceHaloUpdater:

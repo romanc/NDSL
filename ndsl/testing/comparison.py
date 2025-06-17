@@ -8,16 +8,16 @@ def _fixed_width_float_16e(value: np.floating[Any]) -> str:
     """Account for extra '-' character"""
     if value > 0:
         return f" {value:.16e}"
-    else:
-        return f"{value:.16e}"
+
+    return f"{value:.16e}"
 
 
 def _fixed_width_float_2e(value: np.floating[Any]) -> str:
     """Account for extra '-' character"""
     if value > 0:
         return f" {value:.2e}"
-    else:
-        return f"{value:.2e}"
+
+    return f"{value:.2e}"
 
 
 class BaseMetric:
@@ -109,8 +109,8 @@ class LegacyMetric(BaseMetric):
     def one_line_report(self) -> str:
         if self.check:
             return "✅ No numerical differences"
-        else:
-            return "❌ Numerical failures"
+
+        return "❌ Numerical failures"
 
     def report(self, file_path: str | None = None) -> list[str]:
         report = []

@@ -687,8 +687,8 @@ class TileCommunicator(Communicator):
                 "refactoring our code to remove the assumption that any pair "
                 "of ranks only share one boundary"
             )
-        else:
-            return super().start_halo_update(quantity, n_points)
+
+        return super().start_halo_update(quantity, n_points)
 
     def start_vector_halo_update(
         self,
@@ -714,8 +714,8 @@ class TileCommunicator(Communicator):
                 "refactoring our code to remove the assumption that any pair "
                 "of ranks only share one boundary"
             )
-        else:
-            return super().start_vector_halo_update(x_quantity, y_quantity, n_points)
+
+        return super().start_vector_halo_update(x_quantity, y_quantity, n_points)
 
     def start_synchronize_vector_interfaces(
         self, x_quantity: Quantity, y_quantity: Quantity
@@ -744,8 +744,8 @@ class TileCommunicator(Communicator):
                 "refactoring our code to remove the assumption that any pair "
                 "of ranks only share one boundary"
             )
-        else:
-            return super().start_synchronize_vector_interfaces(x_quantity, y_quantity)
+
+        return super().start_synchronize_vector_interfaces(x_quantity, y_quantity)
 
 
 class CubedSphereCommunicator(Communicator):

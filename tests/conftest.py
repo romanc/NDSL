@@ -29,8 +29,8 @@ def gt4py_backend(backend):
         return "numpy"
     elif backend in ("cupy"):
         return "gt:gpu"
-    else:
-        return None
+
+    return None
 
 
 @pytest.fixture

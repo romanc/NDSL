@@ -431,8 +431,8 @@ class Grid:
             return self.is_, self.js
         elif shape[0:2] == (self.nic + 2, self.njc + 2):
             return self.is_ - 1, self.js - 1
-        else:
-            return 0, 0
+
+        return 0, 0
 
     def get_halo_update_spec(
         self,

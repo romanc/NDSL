@@ -96,22 +96,22 @@ class CompilationConfig:
                         return 0  # "00"
                     if partitioner.tile.on_tile_right(rank):
                         return 2  # "20"
-                    else:
-                        return 1  # "10"
+
+                    return 1  # "10"
                 if partitioner.tile.on_tile_top(rank):
                     if partitioner.tile.on_tile_left(rank):
                         return 6  # "02"
                     if partitioner.tile.on_tile_right(rank):
                         return 8  # "22"
-                    else:
-                        return 7  # "12"
+
+                    return 7  # "12"
                 else:
                     if partitioner.tile.on_tile_left(rank):
                         return 3  # "01"
                     if partitioner.tile.on_tile_right(rank):
                         return 5  # "21"
-                    else:
-                        return 4  # "11"
+
+                    return 4  # "11"
         else:
             return rank % partitioner.tile.total_ranks
         raise RuntimeError("Illegal partition specified")

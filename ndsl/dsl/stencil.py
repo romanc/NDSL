@@ -207,8 +207,8 @@ def get_pair_rank(rank: int, size: int):
     dycore_ranks = size // 2
     if rank < dycore_ranks:
         return rank + dycore_ranks
-    else:
-        return rank - dycore_ranks
+
+    return rank - dycore_ranks
 
 
 def compare_ranks(comm: Comm, data) -> Mapping[str, int]:

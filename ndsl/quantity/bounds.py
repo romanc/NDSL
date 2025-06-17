@@ -20,10 +20,10 @@ class BoundaryArrayView:
                 raise IndexError("more than one index given for a zero-dimension array")
             elif isinstance(index, slice) and index != slice(None, None, None):
                 raise IndexError("cannot slice a zero-dimension array")
-            else:
-                return self._data  # array[()] does not return an ndarray
-        else:
-            return self._data[self._get_array_index(index)]
+
+            return self._data  # array[()] does not return an ndarray
+
+        return self._data[self._get_array_index(index)]
 
     def __setitem__(self, index, value):
         self._data[self._get_array_index(index)] = value
@@ -119,10 +119,10 @@ class BoundedArrayView:
                 raise IndexError("more than one index given for a zero-dimension array")
             elif isinstance(index, slice) and index != slice(None, None, None):
                 raise IndexError("cannot slice a zero-dimension array")
-            else:
-                return self._data  # array[()] does not return an ndarray
-        else:
-            return self._data[self._get_compute_index(index)]
+
+            return self._data  # array[()] does not return an ndarray
+
+        return self._data[self._get_compute_index(index)]
 
     def __setitem__(self, index, value):
         self._data[self._get_compute_index(index)] = value
