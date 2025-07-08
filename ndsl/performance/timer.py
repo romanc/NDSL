@@ -18,7 +18,7 @@ class Timer:
         # perform tasks
         self._can_time_CUDA = GPU_AVAILABLE
 
-    def start(self, name: str):
+    def start(self, name: str) -> None:
         """Start timing a given named operation."""
         if self._can_time_CUDA:
             cp.cuda.Device(0).synchronize()
@@ -26,10 +26,10 @@ class Timer:
         if self._enabled:
             if name in self._clock_starts:
                 raise ValueError(f"clock already started for '{name}'")
-            else:
-                self._clock_starts[name] = time()
 
-    def stop(self, name: str):
+            self._clock_starts[name] = time()
+
+    def stop(self, name: str) -> None:
         """Stop timing a given named operation, add the time elapsed to
         accumulated timing and increase the hit count.
         """
@@ -41,6 +41,7 @@ class Timer:
                 self._accumulated_time[name] = time() - self._clock_starts.pop(name)
             else:
                 self._accumulated_time[name] += time() - self._clock_starts.pop(name)
+
             if name not in self._hit_count:
                 self._hit_count[name] = 1
             else:
@@ -54,7 +55,7 @@ class Timer:
 
         Example:
             The context manager times operations that happen within its context. The
-            following would time a time.sleep operation::
+            following would time a time.sleep operation:
 
                 >>> import time
                 >>> from ndsl.performance.timer import Timer
@@ -90,7 +91,7 @@ class Timer:
 
     @property
     def times(self) -> Mapping[str, float]:
-        """accumulated timings for each operation name"""
+        """Accumulated timings for each operation name."""
         if len(self._clock_starts) > 0:
             warnings.warn(
                 "Retrieved times while clocks are still going, "
@@ -102,7 +103,7 @@ class Timer:
 
     @property
     def hits(self) -> Mapping[str, int]:
-        """accumulated hit counts for each operation name"""
+        """Accumulated hit counts for each operation name."""
         if len(self._clock_starts) > 0:
             warnings.warn(
                 "Retrieved hit counts while clocks are still going, "
@@ -112,16 +113,16 @@ class Timer:
             )
         return self._hit_count.copy()
 
-    def reset(self):
+    def reset(self) -> None:
         """Remove all accumulated timings."""
         self._accumulated_time.clear()
         self._hit_count.clear()
 
-    def enable(self):
+    def enable(self) -> None:
         """Enable the Timer."""
         self._enabled = True
 
-    def disable(self):
+    def disable(self) -> None:
         """Disable the Timer."""
         if len(self._clock_starts) > 0:
             raise RuntimeError(
@@ -142,15 +143,14 @@ class NullTimer(Timer):
     Meant to be used in place of an optional timer.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._enabled = False
 
-    def enable(self):
+    def enable(self) -> None:
         """Enable the Timer."""
         raise NotImplementedError(
-            "NullTimer cannot be enabled, maybe create a Timer and "
-            "disable it instead of using NullTimer"
+            "NullTimer cannot be enabled, try using a Timer instead."
         )
 
     @property
