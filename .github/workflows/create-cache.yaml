@@ -35,7 +35,7 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           key: pre-commit_${{ env.pythonLocation }}_${{ hashFiles('.pre-commit-config.yaml') }}
-          lookup-only: true  # don't actually download the cache
+          lookup-only: true  # don't actually download the cache - just check
 
       - name: Populate pre-commit environment (if not cached)
         if: steps.cache.outputs.cache-hit != 'true'
