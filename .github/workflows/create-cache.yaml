@@ -41,7 +41,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           pip install pre-commit
-          pre-commit install
+          pre-commit install --install-hooks
 
   # GitHub Actions cache of the test_data folder
   test-data:
