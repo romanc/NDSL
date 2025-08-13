@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: ~/.cache/pre-commit
           key: pre-commit_${{ env.pythonLocation }}_${{ hashFiles('.pre-commit-config.yaml') }}
