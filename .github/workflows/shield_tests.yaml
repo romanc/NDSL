@@ -2,7 +2,7 @@ name: "SHiELD Translate tests"
 
 # Run these these whenever ...
 on:
-  pull_request: # ... a PR is opened / updated
+#  pull_request: # ... a PR is opened / updated
   merge_group: # ... the PR is added to the merge queue
   push:
     branches:
