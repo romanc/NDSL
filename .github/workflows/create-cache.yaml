@@ -39,7 +39,9 @@ jobs:
 
       - name: Populate pre-commit environment (if not cached)
         if: steps.cache.outputs.cache-hit != 'true'
-        run: pip install pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit install
 
   # GitHub Actions cache of the test_data folder
   test-data:
