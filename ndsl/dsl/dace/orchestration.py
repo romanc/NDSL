@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numbers
 import os
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -130,17 +129,17 @@ def _build_sdfg(
         # Fully specialize all known symbols and then propagate these changes in the simplify
         # pass that follows. This is not only a smart idea in general, but also simplifies (haha)
         # the schedule tree (optimization) roundtrip.
-        with DaCeProgress(config, "Fully specialize symbols"):
-            for my_sdfg in sdfg.all_sdfgs_recursive():
-                if my_sdfg.parent_nsdfg_node is not None:
-                    repl_dict = {}
-                    for sym, val in my_sdfg.parent_nsdfg_node.symbol_mapping.items():
-                        if isinstance(val, numbers.Number):
-                            repl_dict[sym] = val
-                    my_sdfg.replace_dict(repl_dict)
+        # with DaCeProgress(config, "Fully specialize symbols"):
+        #     for my_sdfg in sdfg.all_sdfgs_recursive():
+        #         if my_sdfg.parent_nsdfg_node is not None:
+        #             repl_dict = {}
+        #             for sym, val in my_sdfg.parent_nsdfg_node.symbol_mapping.items():
+        #                 if isinstance(val, numbers.Number):
+        #                     repl_dict[sym] = val
+        #             my_sdfg.replace_dict(repl_dict)
 
-        with DaCeProgress(config, "Simplify (1)"):
-            _simplify(sdfg)
+        # with DaCeProgress(config, "Simplify (1)"):
+        #     _simplify(sdfg)
 
         # TODO uncomment if you want to test schedule tree roundtrip change and/or remove once
         # we have the schedule tree optimization pipeline.
@@ -180,19 +179,19 @@ def _build_sdfg(
         with DaCeProgress(config, "Simplify (2)"):
             _simplify(sdfg)
 
-        # Move all memory that can be into a pool to lower memory pressure.
-        # Change Persistent memory (sub-SDFG) into Scope and flag it.
-        with DaCeProgress(config, "Turn Persistents into pooled Scope"):
-            memory_pooled = 0.0
-            for _sd, _aname, arr in sdfg.arrays_recursive():
-                if arr.lifetime == dtypes.AllocationLifetime.Persistent:
-                    arr.pool = True
-                    memory_pooled += arr.total_size * arr.dtype.bytes
-                    arr.lifetime = dtypes.AllocationLifetime.Scope
-            memory_pooled = float(memory_pooled) / (1024 * 1024)
-            ndsl_log.debug(
-                f"{DaCeProgress.default_prefix(config)} Pooled {memory_pooled} mb",
-            )
+        # # Move all memory that can be into a pool to lower memory pressure.
+        # # Change Persistent memory (sub-SDFG) into Scope and flag it.
+        # with DaCeProgress(config, "Turn Persistents into pooled Scope"):
+        #     memory_pooled = 0.0
+        #     for _sd, _aname, arr in sdfg.arrays_recursive():
+        #         if arr.lifetime == dtypes.AllocationLifetime.Persistent:
+        #             arr.pool = True
+        #             memory_pooled += arr.total_size * arr.dtype.bytes
+        #             arr.lifetime = dtypes.AllocationLifetime.Scope
+        #     memory_pooled = float(memory_pooled) / (1024 * 1024)
+        #     ndsl_log.debug(
+        #         f"{DaCeProgress.default_prefix(config)} Pooled {memory_pooled} mb",
+        #     )
 
         # Set of debug tools inserted in the SDFG when dace.conf "syncdebug"
         # is turned on.
