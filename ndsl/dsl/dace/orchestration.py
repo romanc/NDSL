@@ -48,6 +48,7 @@ from ndsl.dsl.dace.utils import (
 from ndsl.logging import ndsl_log
 from ndsl.optional_imports import cupy as cp
 from ndsl.quantity import Quantity, State
+from ndsl.quantity.tracer_bundle import TracerBundle, TracerBundleTypeRegistry
 
 
 _INTERNAL__SCHEDULE_TREE_OPTIMIZATION: bool = False
@@ -385,9 +386,10 @@ def _parse_sdfg(
             return None
 
         with DaCeProgress(config, f"Parse code of {dace_program.name} to SDFG"):
+            closure = dace_program.__sdfg_closure__()
             sdfg = dace_program.to_sdfg(
                 *args,
-                **dace_program.__sdfg_closure__(),
+                **closure,
                 **kwargs,
                 save=False,
                 simplify=False,
@@ -605,8 +607,28 @@ def orchestrate(
             __qualname__ = f"{type(obj).__qualname__}_patched"
             __name__ = f"{type(obj).__name__}_patched"
 
-            def __call__(self, *arg, **kwarg):  # type: ignore[no-untyped-def]
-                return wrapped(*arg, **kwarg)
+            def __call__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+                def _convert_NDSL_concepts(
+                    args: tuple, kwargs: dict
+                ) -> tuple[tuple, dict]:
+                    arg_list = list(args)
+
+                    for index, argument in enumerate(args):
+                        if isinstance(argument, TracerBundle):
+                            _, dace_bundle_type = TracerBundleTypeRegistry.T(  # type: ignore
+                                argument.type_name, do_markup=False
+                            )
+                            arg_list[
+                                index
+                            ] = dace_bundle_type.dtype._typeclass.as_ctypes()(
+                                data=argument.data.__array_interface__["data"][0],
+                                size=len(argument),
+                            )
+
+                    return (tuple(arg_list), kwargs)
+
+                args, kwargs = _convert_NDSL_concepts(args, kwargs)
+                return wrapped(*args, **kwargs)
 
             def __sdfg__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
                 sdfg = wrapped.__sdfg__(*args, **kwargs)

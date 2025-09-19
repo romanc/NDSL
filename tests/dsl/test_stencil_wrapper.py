@@ -14,7 +14,7 @@ from ndsl import (
 )
 from ndsl.dsl.gt4py import PARALLEL, computation, interval
 from ndsl.dsl.gt4py_utils import make_storage_from_shape
-from ndsl.dsl.stencil import _convert_quantities_to_storage
+from ndsl.dsl.stencil import _convert_NDSL_concepts_to_storage
 from ndsl.dsl.typing import (
     BoolFieldIJ,
     Float,
@@ -354,7 +354,7 @@ def get_mock_quantity():
 def test_convert_quantities_to_storage_no_args() -> None:
     args = []
     kwargs = {}
-    _convert_quantities_to_storage(args, kwargs)
+    args, kwargs = _convert_NDSL_concepts_to_storage(args, kwargs)
     assert len(args) == 0
     assert len(kwargs) == 0
 
@@ -363,7 +363,7 @@ def test_convert_quantities_to_storage_one_arg_quantity() -> None:
     quantity = get_mock_quantity()
     args = [quantity]
     kwargs = {}
-    _convert_quantities_to_storage(args, kwargs)
+    args, kwargs = _convert_NDSL_concepts_to_storage(args, kwargs)
     assert len(args) == 1
     assert args[0] == quantity.data
     assert len(kwargs) == 0
@@ -373,7 +373,7 @@ def test_convert_quantities_to_storage_one_kwarg_quantity() -> None:
     quantity = get_mock_quantity()
     args = []
     kwargs = {"val": quantity}
-    _convert_quantities_to_storage(args, kwargs)
+    args, kwargs = _convert_NDSL_concepts_to_storage(args, kwargs)
     assert len(args) == 0
     assert len(kwargs) == 1
     assert kwargs["val"] == quantity.data
@@ -383,7 +383,7 @@ def test_convert_quantities_to_storage_one_arg_nonquantity() -> None:
     non_quantity = unittest.mock.MagicMock(spec=tuple)
     args = [non_quantity]
     kwargs = {}
-    _convert_quantities_to_storage(args, kwargs)
+    args, kwargs = _convert_NDSL_concepts_to_storage(args, kwargs)
     assert len(args) == 1
     assert args[0] == non_quantity
     assert len(kwargs) == 0
@@ -393,7 +393,7 @@ def test_convert_quantities_to_storage_one_kwarg_non_quantity() -> None:
     non_quantity = unittest.mock.MagicMock(spec=tuple)
     args = []
     kwargs = {"val": non_quantity}
-    _convert_quantities_to_storage(args, kwargs)
+    args, kwargs = _convert_NDSL_concepts_to_storage(args, kwargs)
     assert len(args) == 0
     assert len(kwargs) == 1
     assert kwargs["val"] == non_quantity

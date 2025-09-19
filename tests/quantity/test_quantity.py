@@ -387,13 +387,20 @@ def test_assign_basic_data_is_deprecated() -> None:
 
 
 def test_constructor_backend_will_be_required() -> None:
-    nx = 5
-    shape = (nx,)
     with pytest.deprecated_call(match="`backend` will be a required argument"):
-        local = Quantity(
-            data=np.empty(shape),
-            origin=(0,),
-            extent=(nx,),
+        Quantity(
+            data=np.empty((5,)),
             dims=("dim_X",),
             units="n/a",
+        )
+
+
+def test_raise_on_data_copy_option():
+    with pytest.raises(RuntimeError, match="Data was copied.*"):
+        Quantity(
+            np.random.randn(3, 2, 4),
+            dims=["dim1", "dim_2", "dims3"],
+            units="n/a",
+            backend="dace:cpu",
+            raise_on_data_copy=True,
         )

@@ -41,6 +41,8 @@ from ndsl.initialization import GridSizer, SubtileGridSizer
 from ndsl.logging import ndsl_log
 from ndsl.quantity import Quantity
 from ndsl.quantity.field_bundle import FieldBundleType, MarkupFieldBundleType
+from ndsl.quantity.tracer_bundle import TracerBundle, TracerBundleTypeRegistry
+from ndsl.quantity.tracer_bundle_type import MarkupTracerBundleType
 from ndsl.testing.comparison import LegacyMetric
 
 
@@ -363,6 +365,11 @@ class FrozenStencil(SDFGConvertible):
                         types.name, do_markup=False
                     )
 
+                if isinstance(types, MarkupTracerBundleType):
+                    raise NotImplementedError(
+                        "TracerBundle markup types can't be resolved yet."
+                    )
+
             self.stencil_object = gtscript.stencil(
                 definition=func,
                 externals=externals,
@@ -414,9 +421,7 @@ class FrozenStencil(SDFGConvertible):
             self._validate_quantity_sizes(*args, **kwargs)
 
         # Marshal arguments
-        args_list = list(args)
-        _convert_quantities_to_storage(args_list, kwargs)
-        args = tuple(args_list)
+        args, kwargs = _convert_NDSL_concepts_to_storage(args, kwargs)
         args_as_kwargs = dict(zip(self._argument_names, args))
 
         # Ranks comparison tool
@@ -596,25 +601,44 @@ class FrozenStencil(SDFGConvertible):
                 )
 
 
-def _convert_quantities_to_storage(args, kwargs):  # type: ignore[no-untyped-def]
-    for i, arg in enumerate(args):
-        try:
-            # Check that 'dims' is an attribute of arg. If so,
-            # this means it's a Quantity, so we need
-            # to pull off the ndarray.
-            arg.dims
-            args[i] = arg.data
-        except AttributeError:
-            pass
-    for name, arg in kwargs.items():
-        try:
-            # Check that 'dims' is an attribute of arg. If so,
-            # this means it's a Quantity, so we need
-            # to pull off the ndarray.
-            arg.dims
-            kwargs[name] = arg.data
-        except AttributeError:
-            pass
+def _convert_NDSL_concepts_to_storage(args: tuple, kwargs: dict) -> tuple[tuple, dict]:
+    """Go through the list of args and kwargs to replace NDSL concepts.
+
+    This function replaces NDSL concepts (like a `Quantity`) in the argument list
+    with things that a GT4Py stencils understands (e.g. ndarrays).
+    """
+
+    # The `args` tuple is immutable (all tuples are), so let's build a temporary
+    # argument list, such that we can replace arguments in that list.
+    arg_list = list(args)
+
+    for index, argument in enumerate(args):
+        # if isinstance(argument, TracerBundle):
+        #    # Reduce the TracerBundle to a Quantity (which is handled below)
+        #    arg_list[index] = argument.data.data
+        if isinstance(argument, TracerBundle):
+            _, dace_bundle_type = TracerBundleTypeRegistry.T(  # type: ignore
+                argument.type_name, do_markup=False
+            )
+            arg_list[index] = dace_bundle_type.dtype._typeclass.as_ctypes()(
+                data=argument.data.__array_interface__["data"][0],
+                size=len(argument),
+            )
+
+        if isinstance(argument, Quantity):
+            # For Quantities, we need to pass on the underlying ndarray
+            arg_list[index] = argument.data
+
+    for name, argument in kwargs.items():
+        # if isinstance(argument, TracerBundle):
+        #    # Reduce the TracerBundle to a Quantity (which is handled below)
+        #    kwargs[name] = argument.data
+
+        if isinstance(argument, Quantity):
+            # For Quantities, we need to pass on the underlying ndarray
+            kwargs[name] = argument.data
+
+    return (tuple(arg_list), kwargs)
 
 
 class GridIndexing:

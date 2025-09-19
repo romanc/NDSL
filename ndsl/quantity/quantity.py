@@ -39,6 +39,7 @@ class Quantity:
         gt4py_backend: str | None = None,
         allow_mismatch_float_precision: bool = False,
         number_of_halo_points: int = 0,
+        raise_on_data_copy: bool = False,
     ):
         """Initialize a Quantity.
 
@@ -56,6 +57,7 @@ class Quantity:
             allow_mismatch_float_precision: allow for precision that is
                 not the simulation-wide default configuration. Defaults to False.
             number_of_halo_points: Number of halo points used. Defaults to 0.
+            raise_on_data_copy: raise if `data` is copied into this quantity.
 
         Raises:
             ValueError: Data-type mismatch between configuration and input-data
@@ -86,10 +88,13 @@ class Quantity:
                 f"Floating-point data type mismatch, asked for {data.dtype}, "
                 f"Pace configured for {Float}"
             )
-        if origin is None:
-            origin = (0,) * len(dims)  # default origin at origin of array
-        else:
-            origin = tuple(origin)
+
+        # Track if we copied data and if so, raise at the end in case
+        # `raise_on_data_copy` is True. The initialization errors on the safe side.
+        did_copy_data: bool = True
+
+        # default origin at origin of array
+        origin = (0,) * len(dims) if origin is None else tuple(origin)
 
         if extent is None:
             extent = tuple(length - start for length, start in zip(data.shape, origin))
@@ -131,6 +136,7 @@ class Quantity:
 
             if is_optimal_layout(data, dimensions):
                 self._data = data
+                did_copy_data = False
             else:
                 warnings.warn(
                     f"Suboptimal data layout found. Copying data to optimally align for backend '{backend}'.",
@@ -147,6 +153,7 @@ class Quantity:
         else:
             # We have no info about the gt4py backend, so just assign it.
             self._data = data
+            did_copy_data = False
 
         self._metadata = QuantityMetadata(
             origin=_ensure_int_tuple(origin, "origin"),
@@ -163,6 +170,11 @@ class Quantity:
         self._compute_domain_view = BoundedArrayView(
             self.data, self.dims, self.origin, self.extent
         )
+
+        if raise_on_data_copy and did_copy_data:
+            raise RuntimeError(
+                "Data was copied into this quantity despite `raise_on_copy_data=True`."
+            )
 
     @classmethod
     def from_data_array(
