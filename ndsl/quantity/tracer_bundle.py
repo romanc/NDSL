@@ -92,7 +92,7 @@ class TracerBundle:
         *,
         type_name: str,
         quantity_factory: QuantityFactory,
-        mapping: _TracerMapping = {},
+        mapping: _TracerMapping | None = None,
         unit: str = "g/kg",
     ) -> None:
         """
@@ -104,6 +104,9 @@ class TracerBundle:
             mapping: Optional mapping of names to tracer ids, e.g. `{"vapor": 3}`.
             unit: Optional unit of the tracers (one for all).
         """
+        if mapping is None:
+            mapping = {}
+
         types: Any = TracerBundleTypeRegistry.T(type_name, do_markup=False)
 
         size = types[0].data_dims[0]
