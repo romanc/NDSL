@@ -193,5 +193,5 @@ def _tracer_quantity_factory(
         number_of_tracers: number of tracers in this bundle.
     """
     tracer_factory = copy.copy(quantity_factory)
-    tracer_factory.set_extra_dim_lengths(tracers=number_of_tracers)
+    tracer_factory.add_data_dimensions({"tracers": number_of_tracers})
     return tracer_factory
