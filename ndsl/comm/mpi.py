@@ -5,7 +5,7 @@ place where we directly import from mpi4py. This allows to potentially
 swap mpi4py in the future.
 """
 
-from typing import TypeVar, cast
+from typing import TypeVar
 
 from mpi4py import MPI
 
@@ -34,10 +34,11 @@ class MPIComm(Comm):
         ReductionOperator.NO_OP: MPI.NO_OP,
     }
 
-    def __init__(self) -> None:
+    def __init__(self, mpi_comm: MPI.Comm | None = None) -> None:
         if MPI is None:
             raise RuntimeError("MPI not available")
-        self._comm: Comm = cast(Comm, MPI.COMM_WORLD)
+
+        self._comm = MPI.COMM_WORLD if mpi_comm is None else mpi_comm
 
     def Get_rank(self) -> int:
         return self._comm.Get_rank()
@@ -63,31 +64,31 @@ class MPIComm(Comm):
     def allgather(self, sendobj: T) -> list[T]:
         return self._comm.allgather(sendobj)
 
-    def Send(self, sendbuf, dest, tag: int = 0, **kwargs: dict):  # type: ignore[no-untyped-def]
+    def Send(self, sendbuf, dest: int, tag: int = 0, **kwargs: dict):  # type: ignore[no-untyped-def]
         self._comm.Send(sendbuf, dest, tag=tag, **kwargs)
 
-    def sendrecv(self, sendbuf, dest, **kwargs: dict):  # type: ignore[no-untyped-def]
+    def sendrecv(self, sendbuf, dest: int, **kwargs):  # type: ignore[no-untyped-def]
         return self._comm.sendrecv(sendbuf, dest, **kwargs)
 
-    def Isend(self, sendbuf, dest, tag: int = 0, **kwargs: dict) -> Request:  # type: ignore[no-untyped-def]
+    def Isend(self, sendbuf, dest: int, tag: int = 0, **kwargs: dict) -> Request:  # type: ignore[no-untyped-def]
         return self._comm.Isend(sendbuf, dest, tag=tag, **kwargs)
 
-    def Recv(self, recvbuf, source, tag: int = 0, **kwargs: dict):  # type: ignore[no-untyped-def]
+    def Recv(self, recvbuf, source: int, tag: int = 0, **kwargs) -> None:  # type: ignore[no-untyped-def]
         self._comm.Recv(recvbuf, source, tag=tag, **kwargs)
 
-    def Irecv(self, recvbuf, source, tag: int = 0, **kwargs: dict) -> Request:  # type: ignore[no-untyped-def]
+    def Irecv(self, recvbuf, source: int, tag: int = 0, **kwargs: dict) -> Request:  # type: ignore[no-untyped-def]
         return self._comm.Irecv(recvbuf, source, tag=tag, **kwargs)
 
     def Split(self, color, key) -> Comm:  # type: ignore[no-untyped-def]
-        return self._comm.Split(color, key)
+        return MPIComm(self._comm.Split(color, key))
 
     def allreduce(
         self, sendobj: T, op: ReductionOperator = ReductionOperator.NO_OP
     ) -> T:
         return self._comm.allreduce(sendobj, self._op_mapping[op])
 
-    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> T:
+    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> None:
         return self._comm.Allreduce(sendobj, recvobj, self._op_mapping[op])
 
-    def Allreduce_inplace(self, recvobj: T, op: ReductionOperator) -> T:
+    def Allreduce_inplace(self, recvobj: T, op: ReductionOperator) -> None:
         return self._comm.Allreduce(MPI.IN_PLACE, recvobj, self._op_mapping[op])

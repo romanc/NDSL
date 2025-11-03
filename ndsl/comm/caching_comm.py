@@ -156,10 +156,10 @@ class CachingCommReader(Comm[T]):
     ) -> T:
         return self._data.get_generic_obj()
 
-    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> T:
+    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("CachingCommReader.Allreduce")
 
-    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> T:
+    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("CachingCommReader.Allreduce_inplace")
 
     @classmethod
@@ -248,8 +248,8 @@ class CachingCommWriter(Comm[T]):
         self._data.generic_obj_buffers.append(copy.deepcopy(result))
         return result
 
-    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> T:
+    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("CachingCommWriter.Allreduce")
 
-    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> T:
+    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("CachingCommWriter.Allreduce_inplace")

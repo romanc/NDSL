@@ -20,7 +20,7 @@ repos:
       - id: mypy
         name: mypy-ndsl
         args: ["--config-file", "pyproject.toml"]
-        additional_dependencies: [types-PyYAML]
+        additional_dependencies: [mpi4py, pandas-stubs, scipy-stubs, types-PyYAML]
         files: ndsl
         exclude: |
           (?x)^(

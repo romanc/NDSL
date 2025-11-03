@@ -74,10 +74,10 @@ class DummyComm(Comm[T]):
     ) -> T:
         raise NotImplementedError("DummyComm.allreduce")
 
-    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> T:
+    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("DummyComm.Allreduce")
 
-    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> T:
+    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("DummyComm.Allreduce_inplace")
 
 

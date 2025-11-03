@@ -47,8 +47,8 @@ def unblock_waiting_tiles(comm: MPI.Comm) -> None:
     rank = comm.Get_rank()
     size = comm.Get_size()
     if comm and size > 1:
+        tile_size = int(size / 6)
         for tile in range(1, 6):
-            tile_size = size / 6
             message = "compilation finished"
             comm.send(message, dest=tile * tile_size + rank)
 

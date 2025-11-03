@@ -102,10 +102,9 @@ class NullComm(Comm[T]):
     ) -> T:
         return self._fill_value
 
-    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> T:
+    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> None:
         # TODO: what about reduction operator `op`?
         recvobj = sendobj
-        return recvobj
 
-    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> T:
+    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> None:
         raise NotImplementedError("NullComm.Allreduce_inplace")

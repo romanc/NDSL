@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 import enum
-from typing import Generic, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 
 T = TypeVar("T")
@@ -27,7 +27,7 @@ class ReductionOperator(enum.Enum):
     NO_OP = enum.auto()
 
 
-class Request(abc.ABC):
+class Request(Protocol):
     @abc.abstractmethod
     def wait(self) -> None: ...
 
@@ -58,19 +58,19 @@ class Comm(abc.ABC, Generic[T]):
     def allgather(self, sendobj: T) -> list[T]: ...
 
     @abc.abstractmethod
-    def Send(self, sendbuf, dest, tag: int = 0, **kwargs: dict): ...  # type: ignore[no-untyped-def]
+    def Send(self, sendbuf, dest: int, tag: int = 0, **kwargs: dict): ...  # type: ignore[no-untyped-def]
 
     @abc.abstractmethod
-    def sendrecv(self, sendbuf, dest, **kwargs: dict): ...  # type: ignore[no-untyped-def]
+    def sendrecv(self, sendbuf, dest: int, **kwargs): ...  # type: ignore[no-untyped-def]
 
     @abc.abstractmethod
-    def Isend(self, sendbuf, dest, tag: int = 0, **kwargs: dict) -> Request: ...  # type: ignore[no-untyped-def]
+    def Isend(self, sendbuf, dest: int, tag: int = 0, **kwargs: dict) -> Request: ...  # type: ignore[no-untyped-def]
 
     @abc.abstractmethod
-    def Recv(self, recvbuf, source, tag: int = 0, **kwargs: dict): ...  # type: ignore[no-untyped-def]
+    def Recv(self, recvbuf, source: int, tag: int = 0, **kwargs: dict) -> None: ...  # type: ignore[no-untyped-def]
 
     @abc.abstractmethod
-    def Irecv(self, recvbuf, source, tag: int = 0, **kwargs: dict) -> Request: ...  # type: ignore[no-untyped-def]
+    def Irecv(self, recvbuf, source: int, tag: int = 0, **kwargs: dict) -> Request: ...  # type: ignore[no-untyped-def]
 
     @abc.abstractmethod
     def Split(self, color, key) -> Comm: ...  # type: ignore[no-untyped-def]
@@ -81,7 +81,7 @@ class Comm(abc.ABC, Generic[T]):
     ) -> T: ...
 
     @abc.abstractmethod
-    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> T: ...
+    def Allreduce(self, sendobj: T, recvobj: T, op: ReductionOperator) -> None: ...
 
     @abc.abstractmethod
-    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> T: ...
+    def Allreduce_inplace(self, obj: T, op: ReductionOperator) -> None: ...
