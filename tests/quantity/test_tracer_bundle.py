@@ -17,7 +17,7 @@ def test_query_size_of_bundle_with_len() -> None:
         type_name=_TRACER_BUNDLE_TYPENAME, quantity_factory=quantity_factory
     )
 
-    assert len(tracers) == 5
+    assert len(tracers) == tracers.size == 5
 
 
 def test_access_tracer_by_name() -> None:

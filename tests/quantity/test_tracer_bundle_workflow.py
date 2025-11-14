@@ -1,8 +1,6 @@
 """This module includes integration tests for the `TracerBundle` class,
 testing whole workflows."""
 
-from typing import Any
-
 import pytest
 
 from ndsl import Quantity, StencilFactory, orchestrate
@@ -28,29 +26,6 @@ _TRACER_BUNDLE_TYPENAME = "TracerBundleTypeWorkflowTests"
 _TracerBundleStencilType, _TracerBundleDaCeType = TracerBundleTypeRegistry.register(
     _TRACER_BUNDLE_TYPENAME, size=5
 )
-
-
-def fill_tracer_by_name(
-    bundle: TracerBundle, name: str, value: Any, *, write_halo: bool = False
-) -> None:
-    bundle.fill_tracer_by_name(name, value=value, compute_domain_only=not write_halo)
-
-
-class IceTracerSetup2:
-    def __init__(self, stencil_factory: StencilFactory):
-        orchestrate(
-            obj=self,
-            config=stencil_factory.config.dace_config,
-            dace_compiletime_args=["tracers"],
-        )
-
-    def __call__(self, tracers: TracerBundle) -> None:
-        bla = tracers.size()
-
-        # tracers.ice.data[:] = 20 + bla
-        fill_tracer_by_name(tracers, "ice", 20 + bla, write_halo=True)
-        # tracers.ice.field[:] = 10
-        fill_tracer_by_name(tracers, "ice", 10)
 
 
 class IceTracerSetup:
@@ -95,10 +70,7 @@ def test_orchestrated_ice_tracer_setup() -> None:
     halo_size = 1
 
     stencil_factory, quantity_factory = get_factories_single_tile_orchestrated(
-        domain[0],
-        domain[1],
-        domain[2],
-        halo_size,
+        domain[0], domain[1], domain[2], halo_size
     )
 
     tracers = TracerBundle(

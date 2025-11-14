@@ -2,54 +2,9 @@ import copy
 from enum import Enum, auto
 from typing import Any
 
-from dace import SDFG, SDFGState
-from dace.data import create_datadescriptor
-from dace.frontend.common import op_repository as oprepo
-from dace.frontend.python.newast import ProgramVisitor
-
 from ndsl.constants import X_DIM, Y_DIM, Z_DIM
 from ndsl.initialization.allocator import Quantity, QuantityFactory
 from ndsl.quantity.tracer_bundle_type import TracerBundleTypeRegistry
-
-
-@oprepo.replaces_method("ndsl.quantity.tracer_bundle.TracerBundle", "size")
-def _tracer_bundle_fill_tracer(
-    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
-) -> None:
-    raise NotImplementedError("let's just see if we get here")
-
-
-@oprepo.replaces_method("ndsl.quantity.TracerBundle", "size")
-def _tracer_bundle_fill_tracer_2(
-    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
-) -> None:
-    raise NotImplementedError("let's just see if we get here 2")
-
-
-@oprepo.replaces_method("tracers", "size")
-def _tracer_bundle_fill_tracer_3(
-    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
-) -> None:
-    raise NotImplementedError("let's just see if we get here 3")
-
-
-@oprepo.replaces("fill_tracer_by_name")
-def _fill_tracer_by_name(
-    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
-) -> None:
-    bundle = args[0]
-    tracer_name = args[1]
-    fill_value = args[2]
-
-    array_name = f"bundle_{bundle.type_name}"
-    if array_name not in sdfg.arrays:
-        sdfg.arrays[array_name] = create_datadescriptor(bundle.data.data)
-
-    # insert tasklet to assign the value
-
-    # connect tasklet. add missing inputs if necessary
-
-    raise NotImplementedError("let's see if we get here")
 
 
 class Region(Enum):
@@ -79,12 +34,12 @@ _TracerDataMapping = dict[_TracerIndex, Tracer]
 
 class TracerBundle:
     """A TracerBundle groups a given set of named/nameless tracers into a single
-    four-dimensional Quantity.
+    structure.
 
     All tracers can be accessed by index, e.g. `tracer[1]`. Named tracers can be
     accessed by name too, e.g. `tracer.vapor` assuming `vapor` is defined in the
     `mapping` of names to tracer indices. `len(tracers)` returns the size of this
-    TracerBundle.
+    TracerBundle, i.e. the number of tracers.
     """
 
     def __init__(
@@ -102,7 +57,7 @@ class TracerBundle:
             type_name (str): name under which this bundle's type is registered.
             quantity_factory: QuantityFactory to build tracers with.
             mapping: Optional mapping of names to tracer ids, e.g. `{"vapor": 3}`.
-            unit: Optional unit of the tracers (one for all).
+            unit: Optional unit of the tracers (same unit for all tracers).
         """
         if mapping is None:
             mapping = {}
@@ -125,6 +80,7 @@ class TracerBundle:
         """Number of tracers in this bundle."""
         return self._size
 
+    @property
     def size(self) -> int:
         return self._size
 
@@ -158,29 +114,32 @@ class TracerBundle:
                 origin=self.data.origin[:-1],
                 extent=self.data.extent[:-1],
                 units=self.data.units,
+                backend=self.data.backend,
                 # Ensure we never copy data into a tracer
                 raise_on_data_copy=True,
             )
 
         return self._data_mapping[index]
 
-    def fill_tracer(
-        self, index: _TracerIndex, *, value: Any, compute_domain_only: bool = False
-    ) -> None:
-        if compute_domain_only:
-            self.data.field[:, :, :, index] = value
-        else:
-            self.data.data[:, :, :, index] = value
+    # def fill_tracer(
+    #     self, index: _TracerIndex, *, value: Any, compute_domain_only: bool = False
+    # ) -> None:
+    #     if compute_domain_only:
+    #         self.data.field[:, :, :, index] = value
+    #     else:
+    #         self.data.data[:, :, :, index] = value
 
-    def fill_tracer_by_name(
-        self, name: str, *, value: Any, compute_domain_only: bool = False
-    ) -> None:
-        index = self._name_mapping[name]
 
-        if compute_domain_only:
-            self.data.field[:, :, :, index] = value
-        else:
-            self.data.data[:, :, :, index] = value
+#
+# def fill_tracer_by_name(
+#     self, name: str, *, value: Any, compute_domain_only: bool = False
+# ) -> None:
+#     index = self._name_mapping[name]
+#
+#     if compute_domain_only:
+#         self.data.field[:, :, :, index] = value
+#     else:
+#         self.data.data[:, :, :, index] = value
 
 
 def _tracer_quantity_factory(
