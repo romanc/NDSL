@@ -103,4 +103,4 @@ def test_runtime_fail_when_not_super_init() -> None:
     with pytest.raises(
         RuntimeError, match="inherit from NDSLRuntime but didn't call super()"
     ):
-        bad_code = BadCode_NoSuperInit()
+        BadCode_NoSuperInit()

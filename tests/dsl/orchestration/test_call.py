@@ -1,11 +1,9 @@
 import dataclasses
 
-from ndsl import NDSLRuntime, QuantityFactory, StencilFactory
+from ndsl import NDSLRuntime, Quantity, State, StencilFactory, orchestrate
 from ndsl.boilerplate import get_factories_single_tile_orchestrated
 from ndsl.constants import X_DIM, Y_DIM, Z_DIM, Float
-from ndsl.dsl.dace.orchestration import orchestrate
 from ndsl.dsl.gt4py import PARALLEL, Field, computation, interval
-from ndsl.quantity import Quantity, State
 
 
 def _stencil(out: Field[float]):
@@ -14,23 +12,19 @@ def _stencil(out: Field[float]):
 
 
 class OrchestratedProgram:
-    def __init__(
-        self,
-        stencil_factory: StencilFactory,
-        quantity_factory: QuantityFactory,
-    ):
+    def __init__(self, stencil_factory: StencilFactory) -> None:
         orchestrate(obj=self, config=stencil_factory.config.dace_config)
         self.stencil = stencil_factory.from_dims_halo(_stencil, [X_DIM, Y_DIM, Z_DIM])
 
-    def __call__(self, out_qty):
+    def __call__(self, out_qty: Quantity) -> None:
         self.stencil(out_qty)
 
 
-def test_memory_reallocation():
+def test_memory_reallocation() -> None:
     stencil_factory, quantity_factory = get_factories_single_tile_orchestrated(
         5, 5, 2, 0
     )
-    code = OrchestratedProgram(stencil_factory, quantity_factory)
+    code = OrchestratedProgram(stencil_factory)
     qty_A = quantity_factory.ones([X_DIM, Y_DIM, Z_DIM], "A")
     qty_B = quantity_factory.ones([X_DIM, Y_DIM, Z_DIM], "B")
 
@@ -59,24 +53,20 @@ class AState(State):
 
 
 class DefaultTypeProgram(NDSLRuntime):
-    def __init__(
-        self,
-        stencil_factory: StencilFactory,
-        quantity_factory: QuantityFactory,
-    ):
+    def __init__(self, stencil_factory: StencilFactory) -> None:
         super().__init__(stencil_factory.config.dace_config)
         self.stencil = stencil_factory.from_dims_halo(_stencil, [X_DIM, Y_DIM, Z_DIM])
 
-    def __call__(self, a_quantity: Quantity, a_state: AState):
+    def __call__(self, a_quantity: Quantity, a_state: AState) -> None:
         self.stencil(a_quantity)
         self.stencil(a_state.the_quantity)
 
 
-def test_default_types_are_compiletime():
+def test_default_types_are_compiletime() -> None:
     stencil_factory, quantity_factory = get_factories_single_tile_orchestrated(
         5, 5, 2, 0
     )
     qty_A = quantity_factory.ones([X_DIM, Y_DIM, Z_DIM], "A")
     state_A = AState.zeros(quantity_factory)
-    code = DefaultTypeProgram(stencil_factory, quantity_factory)
+    code = DefaultTypeProgram(stencil_factory)
     code(qty_A, state_A)
