@@ -24,7 +24,7 @@ from ndsl.quantity.tracer_bundle_type import TracerBundleTypeRegistry
 
 _TRACER_BUNDLE_TYPENAME = "TracerBundleTypeWorkflowTests"
 _TracerBundleStencilType, _TracerBundleDaCeType = TracerBundleTypeRegistry.register(
-    _TRACER_BUNDLE_TYPENAME, size=5
+    _TRACER_BUNDLE_TYPENAME, size=8
 )
 
 
@@ -33,11 +33,13 @@ class IceTracerSetup:
         orchestrate(
             obj=self,
             config=stencil_factory.config.dace_config,
-            dace_compiletime_args=["tracers"],
+            # dace_compiletime_args=["tracers"],
         )
 
     def __call__(self, tracers: _TracerBundleDaCeType) -> None:
         bla = tracers.size
+        tracers.ice = tracers.data[3, :]
+        tracers.vapor = tracers.data[0, :]
 
         tracers.ice.data[:] = 20 + bla
         tracers.ice.field[:] = 10

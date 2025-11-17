@@ -628,7 +628,8 @@ def orchestrate(
                     return (tuple(arg_list), kwargs)
 
                 args, kwargs = _convert_NDSL_concepts(args, kwargs)
-                return wrapped(*args, **kwargs)
+                to_call = wrapped.daceprog.compile()
+                return to_call(*args, **kwargs)
 
             def __sdfg__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
                 sdfg = wrapped.__sdfg__(*args, **kwargs)
