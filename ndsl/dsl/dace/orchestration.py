@@ -579,7 +579,7 @@ def orchestrate(
         func.__annotations__[argument] = DaceCompiletime
 
     for arg_name, annotation in func.__annotations__.items():
-        if annotation in [Quantity, State] or (
+        if annotation in [State] or (
             isinstance(annotation, type) and issubclass(annotation, State)
         ):
             func.__annotations__[arg_name] = DaceCompiletime
@@ -608,8 +608,25 @@ def orchestrate(
             __qualname__ = f"{type(obj).__qualname__}_patched"
             __name__ = f"{type(obj).__name__}_patched"
 
-            def __call__(self, *arg, **kwarg):  # type: ignore[no-untyped-def]
-                return wrapped(*arg, **kwarg)
+            def __call__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+                def _convert_NDSL_concepts(
+                    args: tuple, kwargs: dict
+                ) -> tuple[tuple, dict]:
+                    arg_list = list(args)
+
+                    for index, argument in enumerate(args):
+                        if isinstance(argument, Quantity):
+                            # dace_structure = argument.get_dace_struct()
+                            arg_list[index] = argument.dtype._typeclass.as_ctypes()(
+                                data=argument.data.__array_interface__["data"][0],
+                                field=argument.field.__array_interface__["data"][0],
+                            )
+
+                    return (tuple(arg_list), kwargs)
+
+                to_call = wrapped.daceprog.compile(*args, **kwargs)
+                args, kwargs = _convert_NDSL_concepts(args, kwargs)
+                return to_call(*args, **kwargs)
 
             def __sdfg__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
                 sdfg = wrapped.__sdfg__(*args, **kwargs)

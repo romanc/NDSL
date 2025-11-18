@@ -115,7 +115,7 @@ class FieldBundle:
 
     def __descriptor__(self) -> Any:
         """Data descriptor for DaCe."""
-        return self._quantity.__descriptor__()
+        return self._quantity.__descriptor__()  # type: ignore
 
     @staticmethod
     def extend_3D_quantity_factory(

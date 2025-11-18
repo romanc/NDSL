@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import functools
 import warnings
 from collections.abc import Iterable, Sequence
-from typing import Any, cast
+from typing import cast
 
 import dace
 import matplotlib.pyplot as plt
@@ -24,7 +25,11 @@ if cupy is None:
     import numpy as cupy
 
 
-class Quantity:
+def _prod(sequence):  # type: ignore
+    return functools.reduce(lambda a, b: a * b, sequence, 1)
+
+
+class Quantity(dace.data.Structure):
     """Data container for physical quantities."""
 
     def __init__(
@@ -111,6 +116,37 @@ class Quantity:
             )
 
         _validate_quantity_property_lengths(data.shape, dims, origin, extent)
+
+        # the dace data descriptors here need to take the data layout
+        # (from the backend) into account.
+        dace_shape, dace_extent = with_layout(data, dims, extent, backend)
+
+        super().__init__(
+            members={
+                "data": dace.data.Array(
+                    dace.dtypes.typeclass(data.dtype.type),
+                    shape=dace_shape,
+                    may_alias=True,  # should this be False?
+                ),
+                # "field": dace.data.Array(
+                #     dace.dtypes.typeclass(data.dtype.type),
+                #     shape=extent,
+                #     may_alias=True
+                # )
+                "field": dace.data.Array(
+                    dace.dtypes.typeclass(data.dtype.type),
+                    # shape=tuple(e + o for e, o in zip(extent, origin)),
+                    shape=dace_extent,
+                    strides=[
+                        _prod(dace_shape[i + 1 :]) for i in range(len(dace_shape))
+                    ],
+                    # offset=origin,
+                    total_size=_prod(dace_shape),
+                    may_alias=True,
+                ),
+            },
+            name=f"q_{id(self)}",
+        )
 
         if backend is not None:
             gt4py_backend_cls = gt_backend.from_name(backend)
@@ -356,26 +392,42 @@ class Quantity:
     def np(self) -> NumpyModule:
         return self.metadata.np
 
-    @property
-    def __array_interface__(self):  # type: ignore[no-untyped-def]
-        return self.data.__array_interface__
+    # @property
+    # def __array_interface__(self):  # type: ignore[no-untyped-def]
+    #     return self.data.__array_interface__
+    #
+    # @property
+    # def __cuda_array_interface__(self):  # type: ignore[no-untyped-def]
+    #     return self.data.__cuda_array_interface__
 
-    @property
-    def __cuda_array_interface__(self):  # type: ignore[no-untyped-def]
-        return self.data.__cuda_array_interface__
+    # @property
+    # def shape(self):  # type: ignore[no-untyped-def]
+    #     return self.data.shape
 
-    @property
-    def shape(self):  # type: ignore[no-untyped-def]
-        return self.data.shape
+    # def __descriptor__(self) -> Any:
+    #     """The descriptor is a property that dace uses.
+    #
+    #     This relies on `dace` capacity to read out data from the buffer protocol.
+    #     If the internal data given doesn't follow the protocol it will most likely
+    #     fail.
+    #     """
+    #     return dace.data.create_datadescriptor(self.data)
 
-    def __descriptor__(self) -> Any:
-        """The descriptor is a property that dace uses.
+    def __descriptor__() -> None:  # type: ignore
+        return None
 
-        This relies on `dace` capacity to read out data from the buffer protocol.
-        If the internal data given doesn't follow the protocol it will most likely
-        fail.
-        """
-        return dace.data.create_datadescriptor(self.data)
+    # def get_dace_struct(self) -> dace.data.Structure:
+    #     return dace.data.Structure(
+    #         members={
+    #             "data": dace.data.Array(
+    #                 dace.dtypes.typeclass(self.data.dtype.type), self.shape
+    #             ),
+    #             "field": dace.data.Array(
+    #                 dace.dtypes.typeclass(self.data.dtype.type), self.extent
+    #             ),
+    #         },
+    #         name=f"q_{id(self)}",
+    #     )
 
     def transpose(
         self,
@@ -516,3 +568,36 @@ def _resolve_backend(data: xr.DataArray, backend: str | None) -> str:
 
     # else, fall back to assume python-based layout.
     return "debug"
+
+
+def with_layout(data, dims, extent, backend: str | None) -> tuple[tuple, tuple]:  # type: ignore
+    if backend is None:
+        raise ValueError("We need a backend to know the layout")
+
+    shape = data.shape
+
+    gt4py_backend_cls = gt_backend.from_name(backend)
+    layout_map = gt4py_backend_cls.storage_info["layout_map"]
+
+    dimensions: tuple[str | int, ...] = tuple(
+        [
+            (
+                axis  # type: ignore # mypy can't parse this list construction of hell
+                if any(dim in axis_dims for axis_dims in constants.SPATIAL_DIMS)
+                else str(data.shape[index])
+            )
+            for index, (dim, axis) in enumerate(
+                zip(dims, ("I", "J", "K", *([None] * (len(dims) - 3))))
+            )
+        ]
+    )
+
+    out_shape = list(shape)
+    out_extent = list(extent)
+    layout_map(dimensions)
+    # do the magic
+    for i_new, i_old in enumerate(layout_map(dimensions)):
+        out_shape[i_new] = shape[i_old]
+        out_extent[i_new] = extent[i_old]
+
+    return (tuple(out_shape), tuple(out_extent))
