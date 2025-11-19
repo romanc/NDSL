@@ -119,7 +119,13 @@ class Quantity(dace.data.Structure):
 
         # the dace data descriptors here need to take the data layout
         # (from the backend) into account.
-        dace_shape, dace_extent = with_layout(data, dims, extent, backend)
+        dace_shape, dace_extent, dace_origin = with_layout(
+            data, dims, extent, backend, origin
+        )
+        dace_strides = [_prod(dace_shape[i + 1 :]) for i in range(len(dace_shape))]
+        dace_start_offset = functools.reduce(
+            lambda sum, t: sum + t[0] * t[1], zip(dace_origin, dace_strides), 0
+        )
 
         super().__init__(
             members={
@@ -137,10 +143,9 @@ class Quantity(dace.data.Structure):
                     dace.dtypes.typeclass(data.dtype.type),
                     # shape=tuple(e + o for e, o in zip(extent, origin)),
                     shape=dace_extent,
-                    strides=[
-                        _prod(dace_shape[i + 1 :]) for i in range(len(dace_shape))
-                    ],
-                    # offset=origin,
+                    strides=dace_strides,
+                    # offset=dace_origin,
+                    start_offset=dace_start_offset,
                     total_size=_prod(dace_shape),
                     may_alias=True,
                 ),
@@ -570,7 +575,7 @@ def _resolve_backend(data: xr.DataArray, backend: str | None) -> str:
     return "debug"
 
 
-def with_layout(data, dims, extent, backend: str | None) -> tuple[tuple, tuple]:  # type: ignore
+def with_layout(data, dims, extent, backend: str | None, origin) -> tuple[tuple, tuple, tuple]:  # type: ignore
     if backend is None:
         raise ValueError("We need a backend to know the layout")
 
@@ -594,10 +599,12 @@ def with_layout(data, dims, extent, backend: str | None) -> tuple[tuple, tuple]:
 
     out_shape = list(shape)
     out_extent = list(extent)
-    layout_map(dimensions)
+    out_origin = list(origin)
+    our_map = layout_map(dimensions)
     # do the magic
-    for i_new, i_old in enumerate(layout_map(dimensions)):
-        out_shape[i_new] = shape[i_old]
-        out_extent[i_new] = extent[i_old]
+    for axis, mapped_axis in enumerate(layout_map(dimensions)):
+        out_shape[mapped_axis] = shape[axis]
+        out_extent[mapped_axis] = extent[axis]
+        out_origin[mapped_axis] = origin[axis]
 
-    return (tuple(out_shape), tuple(out_extent))
+    return (tuple(out_shape), tuple(out_extent), tuple(out_origin))
