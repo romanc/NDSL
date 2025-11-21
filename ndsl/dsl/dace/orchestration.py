@@ -619,12 +619,12 @@ def orchestrate(
                             # dace_structure = argument.get_dace_struct()
                             arg_list[index] = argument.dtype._typeclass.as_ctypes()(
                                 data=argument.data.__array_interface__["data"][0],
-                                field=argument.field.__array_interface__["data"][0],
+                                field=argument.data.__array_interface__["data"][0],
                             )
 
                     return (tuple(arg_list), kwargs)
 
-                to_call = wrapped.daceprog.compile(*args, **kwargs)
+                to_call = wrapped.daceprog.compile(*args, **kwargs, simplify=False)
                 args, kwargs = _convert_NDSL_concepts(args, kwargs)
                 return to_call(*args, **kwargs)
 

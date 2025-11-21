@@ -134,17 +134,10 @@ class Quantity(dace.data.Structure):
                     shape=dace_shape,
                     may_alias=True,  # should this be False?
                 ),
-                # "field": dace.data.Array(
-                #     dace.dtypes.typeclass(data.dtype.type),
-                #     shape=extent,
-                #     may_alias=True
-                # )
-                "field": dace.data.Array(
+                "field": dace.data.ArrayView(
                     dace.dtypes.typeclass(data.dtype.type),
-                    # shape=tuple(e + o for e, o in zip(extent, origin)),
                     shape=dace_extent,
                     strides=dace_strides,
-                    # offset=dace_origin,
                     start_offset=dace_start_offset,
                     total_size=_prod(dace_shape),
                     may_alias=True,
@@ -397,42 +390,9 @@ class Quantity(dace.data.Structure):
     def np(self) -> NumpyModule:
         return self.metadata.np
 
-    # @property
-    # def __array_interface__(self):  # type: ignore[no-untyped-def]
-    #     return self.data.__array_interface__
-    #
-    # @property
-    # def __cuda_array_interface__(self):  # type: ignore[no-untyped-def]
-    #     return self.data.__cuda_array_interface__
-
-    # @property
-    # def shape(self):  # type: ignore[no-untyped-def]
-    #     return self.data.shape
-
-    # def __descriptor__(self) -> Any:
-    #     """The descriptor is a property that dace uses.
-    #
-    #     This relies on `dace` capacity to read out data from the buffer protocol.
-    #     If the internal data given doesn't follow the protocol it will most likely
-    #     fail.
-    #     """
-    #     return dace.data.create_datadescriptor(self.data)
-
     def __descriptor__() -> None:  # type: ignore
+        """DaCe data descriptor - returns None to force JIT types"""
         return None
-
-    # def get_dace_struct(self) -> dace.data.Structure:
-    #     return dace.data.Structure(
-    #         members={
-    #             "data": dace.data.Array(
-    #                 dace.dtypes.typeclass(self.data.dtype.type), self.shape
-    #             ),
-    #             "field": dace.data.Array(
-    #                 dace.dtypes.typeclass(self.data.dtype.type), self.extent
-    #             ),
-    #         },
-    #         name=f"q_{id(self)}",
-    #     )
 
     def transpose(
         self,

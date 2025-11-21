@@ -2,6 +2,8 @@
 during parsing and replace them with an SDFG compatible representation. This
 allows custom NDSL syntax, objects and symbols to be natively orchestratable."""
 
+from typing import Any
+
 from dace import SDFG, SDFGState, dtypes
 from dace.frontend.common import op_repository as oprepo
 from dace.frontend.python.newast import ProgramVisitor
@@ -38,3 +40,24 @@ def _convert_Int(
         arg,
         dtype=dtypes.dtype_to_typeclass(Int),
     )
+
+
+@oprepo.replaces_attribute("ndsl.quantity.Quantity", "field")
+def _quantity_field(
+    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
+) -> None:
+    raise NotImplementedError("let's just see if we get here")
+
+
+@oprepo.replaces_attribute("Quantity", "field")
+def _quantity_field_2(
+    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
+) -> None:
+    raise NotImplementedError("let's just see if we get here")
+
+
+@oprepo.replaces_method("Quantity", "field")
+def _quantity_field_3(
+    pv: ProgramVisitor, sdfg: SDFG, state: SDFGState, *args: Any, **kwargs: Any
+) -> None:
+    raise NotImplementedError("let's just see if we get here")

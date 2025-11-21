@@ -1,6 +1,6 @@
 import dataclasses
 
-from ndsl import NDSLRuntime, Quantity, State, StencilFactory, orchestrate
+from ndsl import NDSLRuntime, Quantity, State, StencilFactory
 from ndsl.boilerplate import get_factories_single_tile_orchestrated
 from ndsl.constants import X_DIM, Y_DIM, Z_DIM, Float
 from ndsl.dsl.gt4py import PARALLEL, Field, computation, interval
@@ -11,13 +11,13 @@ def _stencil(out: Field[float]):
         out = out + 1
 
 
-class OrchestratedProgram:
+class OrchestratedProgram(NDSLRuntime):
     def __init__(self, stencil_factory: StencilFactory) -> None:
-        orchestrate(obj=self, config=stencil_factory.config.dace_config)
+        super().__init__(stencil_factory.config.dace_config)
         self.stencil = stencil_factory.from_dims_halo(_stencil, [X_DIM, Y_DIM, Z_DIM])
 
     def __call__(self, out_qty: Quantity) -> None:
-        self.stencil(out_qty)
+        self.stencil(out_qty.data)
 
 
 def test_memory_reallocation() -> None:
@@ -58,8 +58,8 @@ class DefaultTypeProgram(NDSLRuntime):
         self.stencil = stencil_factory.from_dims_halo(_stencil, [X_DIM, Y_DIM, Z_DIM])
 
     def __call__(self, a_quantity: Quantity, a_state: AState) -> None:
-        self.stencil(a_quantity)
-        self.stencil(a_state.the_quantity)
+        self.stencil(a_quantity.data)
+        self.stencil(a_state.the_quantity.data)
 
 
 def test_default_types_are_compiletime() -> None:
