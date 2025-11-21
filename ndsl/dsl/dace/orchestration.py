@@ -5,6 +5,7 @@ import os
 from collections.abc import Callable, Sequence
 from typing import Any
 
+import dace
 from dace import SDFG, CompiledSDFG
 from dace import compiletime as DaceCompiletime
 from dace import dtypes
@@ -49,6 +50,7 @@ from ndsl.dsl.dace.utils import (
 from ndsl.logging import ndsl_log
 from ndsl.optional_imports import cupy as cp
 from ndsl.quantity import Quantity, State
+from ndsl.quantity.quantity import apply_layout
 
 
 _INTERNAL__SCHEDULE_TREE_OPTIMIZATION: bool = False
@@ -616,7 +618,6 @@ def orchestrate(
 
                     for index, argument in enumerate(args):
                         if isinstance(argument, Quantity):
-                            # dace_structure = argument.get_dace_struct()
                             arg_list[index] = argument.dtype._typeclass.as_ctypes()(
                                 data=argument.data.__array_interface__["data"][0],
                                 field=argument.data.__array_interface__["data"][0],
@@ -624,7 +625,65 @@ def orchestrate(
 
                     return (tuple(arg_list), kwargs)
 
-                to_call = wrapped.daceprog.compile(*args, **kwargs, simplify=False)
+                sdfg = wrapped.daceprog.to_sdfg(
+                    *args, **kwargs, simplify=False, validate=False
+                )  # compile(*args, **kwargs, simplify=False)
+                # fixup sdfg and insert access nodes for views
+                # candidates: dict[str, list[tuple[dace.SDFGState, dace.nodes.AccessNode]]] = {}
+                for state in sdfg.states():
+                    for node in state.nodes():
+                        if not isinstance(node, dace.nodes.AccessNode):
+                            continue
+                        if not (
+                            node.data.endswith(".field")
+                            and isinstance(sdfg.arrays[node.root_data], Quantity)
+                        ):
+                            continue
+
+                        parts = node.data.split(".")
+                        assert len(parts) == 2
+                        assert (
+                            node.data == "quantity.field"
+                        )  # just for now - to be changed
+
+                        #   - add a `views` out-connector on the view
+                        node.add_out_connector("views")
+                        #   - add an access node (TODO: when is this step necessary)
+                        viewed = state.add_write(f"{parts[0]}.data")
+
+                        #   - and connect (view, 'views`, access_node, None)
+                        quantity = sdfg.arrays[node.root_data]
+                        data_desc = quantity.members["field"]
+                        # assert quantity.gt4py_backend == "dace:cpu_kfirst" # just for now - to be changed
+                        mapped_origin = apply_layout(quantity.origin, quantity._layout)
+                        mapped_extent = apply_layout(quantity.extent, quantity._layout)
+                        ranges = dace.subsets.Range(
+                            [
+                                (o, o + e - 1, 1)
+                                for o, e in zip(mapped_origin, mapped_extent)
+                            ]
+                        )
+                        m = dace.Memlet.from_array(node.data, data_desc)
+                        m.other_subset = ranges
+                        state.add_edge(node, "views", viewed, None, m)
+
+                    # find views with `.field`
+                    # for each of them,
+                    #   - verify that they aren't connected to an output (if so, skip)
+                    #   - add a `views` out-connector on the view
+                    #   - add an access node (TODO: when is this step necessary)
+                    #   - and connect (view, 'views`, access_node, None)
+                sdfg.validate()
+                # sdfg.simplify(verbose=True)
+                SimplifyPass(
+                    validate=True,
+                    verbose=True,
+                    # We disable ScalarToSymbolPromotion because it might push symbols onto edges
+                    # that DaCe itself can't parse anymore later, e.g. casts,  inlined function
+                    # calls or (complicated) field accesses.
+                    skip={"InlineSDFGs", "ScalarToSymbolPromotion"},
+                ).apply_pass(sdfg, {})
+                to_call = sdfg.compile(validate=True)
                 args, kwargs = _convert_NDSL_concepts(args, kwargs)
                 return to_call(*args, **kwargs)
 

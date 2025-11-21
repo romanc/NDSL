@@ -119,9 +119,12 @@ class Quantity(dace.data.Structure):
 
         # the dace data descriptors here need to take the data layout
         # (from the backend) into account.
-        dace_shape, dace_extent, dace_origin = with_layout(
-            data, dims, extent, backend, origin
-        )
+        layout = get_layout(data, dims, backend)
+        self._layout = layout
+
+        dace_shape = apply_layout(data.shape, layout)
+        dace_extent = apply_layout(extent, layout)
+        dace_origin = apply_layout(origin, layout)
         dace_strides = [_prod(dace_shape[i + 1 :]) for i in range(len(dace_shape))]
         dace_start_offset = functools.reduce(
             lambda sum, t: sum + t[0] * t[1], zip(dace_origin, dace_strides), 0
@@ -535,15 +538,12 @@ def _resolve_backend(data: xr.DataArray, backend: str | None) -> str:
     return "debug"
 
 
-def with_layout(data, dims, extent, backend: str | None, origin) -> tuple[tuple, tuple, tuple]:  # type: ignore
+def get_layout(data, dims, backend: str | None):  # type: ignore
     if backend is None:
         raise ValueError("We need a backend to know the layout")
 
-    shape = data.shape
-
     gt4py_backend_cls = gt_backend.from_name(backend)
     layout_map = gt4py_backend_cls.storage_info["layout_map"]
-
     dimensions: tuple[str | int, ...] = tuple(
         [
             (
@@ -556,15 +556,11 @@ def with_layout(data, dims, extent, backend: str | None, origin) -> tuple[tuple,
             )
         ]
     )
+    return layout_map(dimensions)
 
-    out_shape = list(shape)
-    out_extent = list(extent)
-    out_origin = list(origin)
-    our_map = layout_map(dimensions)
-    # do the magic
-    for axis, mapped_axis in enumerate(layout_map(dimensions)):
-        out_shape[mapped_axis] = shape[axis]
-        out_extent[mapped_axis] = extent[axis]
-        out_origin[mapped_axis] = origin[axis]
 
-    return (tuple(out_shape), tuple(out_extent), tuple(out_origin))
+def apply_layout(input: tuple[int, ...], layout: tuple) -> tuple[int, ...]:
+    output = list(input)
+    for axis, mapped_axis in enumerate(layout):
+        output[mapped_axis] = input[axis]
+    return tuple(output)
