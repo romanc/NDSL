@@ -122,28 +122,33 @@ class Quantity(dace.data.Structure):
         layout = get_layout(data, dims, backend)
         self._layout = layout
 
-        dace_shape = apply_layout(data.shape, layout)
-        dace_extent = apply_layout(extent, layout)
+        transformed_shape = apply_layout(data.shape, layout)
+        # dace_extent = apply_layout(extent, layout)
         dace_origin = apply_layout(origin, layout)
-        dace_strides = [_prod(dace_shape[i + 1 :]) for i in range(len(dace_shape))]
+        transformed_strides = [
+            _prod(transformed_shape[i + 1 :]) for i in range(len(transformed_shape))
+        ]
+        dace_strides = undo_layout(tuple(transformed_strides), layout)
+
         dace_start_offset = functools.reduce(
-            lambda sum, t: sum + t[0] * t[1], zip(dace_origin, dace_strides), 0
+            lambda sum, t: sum + t[0] * t[1], zip(origin, dace_strides), 0
         )
 
         super().__init__(
             members={
                 "data": dace.data.Array(
                     dace.dtypes.typeclass(data.dtype.type),
-                    shape=dace_shape,
-                    may_alias=True,  # should this be False?
+                    shape=data.shape,
+                    strides=dace_strides,
+                    # may_alias=True,  # should this be False?
                 ),
                 "field": dace.data.ArrayView(
                     dace.dtypes.typeclass(data.dtype.type),
-                    shape=dace_extent,
+                    shape=extent,
                     strides=dace_strides,
                     start_offset=dace_start_offset,
-                    total_size=_prod(dace_shape),
-                    may_alias=True,
+                    total_size=_prod(data.shape),
+                    # may_alias=True,
                 ),
             },
             name=f"q_{id(self)}",
@@ -563,4 +568,11 @@ def apply_layout(input: tuple[int, ...], layout: tuple) -> tuple[int, ...]:
     output = list(input)
     for axis, mapped_axis in enumerate(layout):
         output[mapped_axis] = input[axis]
+    return tuple(output)
+
+
+def undo_layout(input: tuple[int, ...], layout: tuple) -> tuple[int, ...]:
+    output = list(input)
+    for axis, mapped_axis in enumerate(layout):
+        output[axis] = input[mapped_axis]
     return tuple(output)

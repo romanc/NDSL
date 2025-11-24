@@ -50,7 +50,6 @@ from ndsl.dsl.dace.utils import (
 from ndsl.logging import ndsl_log
 from ndsl.optional_imports import cupy as cp
 from ndsl.quantity import Quantity, State
-from ndsl.quantity.quantity import apply_layout
 
 
 _INTERNAL__SCHEDULE_TREE_OPTIMIZATION: bool = False
@@ -655,12 +654,12 @@ def orchestrate(
                         quantity = sdfg.arrays[node.root_data]
                         data_desc = quantity.members["field"]
                         # assert quantity.gt4py_backend == "dace:cpu_kfirst" # just for now - to be changed
-                        mapped_origin = apply_layout(quantity.origin, quantity._layout)
-                        mapped_extent = apply_layout(quantity.extent, quantity._layout)
+                        # mapped_origin = apply_layout(quantity.origin, quantity._layout)
+                        # mapped_extent = apply_layout(quantity.extent, quantity._layout)
                         ranges = dace.subsets.Range(
                             [
                                 (o, o + e - 1, 1)
-                                for o, e in zip(mapped_origin, mapped_extent)
+                                for o, e in zip(quantity.origin, quantity.extent)
                             ]
                         )
                         m = dace.Memlet.from_array(node.data, data_desc)
