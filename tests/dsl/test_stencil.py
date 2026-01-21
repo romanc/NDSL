@@ -10,6 +10,7 @@ from ndsl import (
     GridIndexing,
     StencilConfig,
     StencilFactory,
+    SubtileGridSizer,
 )
 from ndsl.dsl.gt4py import FORWARD, PARALLEL, Field, computation, interval
 from ndsl.dsl.typing import (
@@ -27,9 +28,11 @@ from tests.dsl import utils
 
 
 def test_timing_collector() -> None:
-    grid_indexing = GridIndexing(
-        domain=(5, 5, 5),
-        n_halo=2,
+    backend = "numpy"
+    grid_indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=5, ny=5, nz=5, n_halo=2, data_dimensions={}, backend=backend
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,
@@ -65,9 +68,10 @@ def test_grid_indexing_get_2d_compute_origin_domain(
     klevel: int | None,
     expected_origin_k: int,
 ):
-    indexing = GridIndexing(
-        domain=(12, 12, 79),
-        n_halo=3,
+    indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=12, ny=12, nz=79, n_halo=3, data_dimensions={}, backend="numpy"
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,

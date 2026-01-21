@@ -450,9 +450,8 @@ class Grid:
 
     @property
     def grid_indexing(self) -> GridIndexing:
-        return GridIndexing(
-            domain=tuple(int(item) for item in self.domain_shape_compute()),
-            n_halo=self.halo,
+        return GridIndexing.from_sizer(
+            self._sizer,
             south_edge=self.south_edge,
             north_edge=self.north_edge,
             west_edge=self.west_edge,

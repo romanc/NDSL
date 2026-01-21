@@ -8,6 +8,7 @@ from ndsl import (
     GridIndexing,
     StencilConfig,
     StencilFactory,
+    SubtileGridSizer,
 )
 from ndsl.constants import X_DIM, Y_DIM, Z_DIM
 from ndsl.dsl.gt4py import PARALLEL, computation, horizontal, interval, region
@@ -60,9 +61,10 @@ def get_stencil_factory(backend: str) -> StencilFactory:
         ),
         dace_config=dace_config,
     )
-    indexing = GridIndexing(
-        domain=(12, 12, 79),
-        n_halo=3,
+    indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=12, ny=12, nz=79, n_halo=3, data_dimensions={}, backend=backend
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,
@@ -147,9 +149,10 @@ def test_stencil_factory_numpy_comparison_from_dims_halo(
         compare_to_numpy=enabled,
         dace_config=dace_config,
     )
-    indexing = GridIndexing(
-        domain=(12, 12, 79),
-        n_halo=3,
+    indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=12, ny=12, nz=79, n_halo=3, data_dimensions={}, backend=backend
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,
@@ -184,9 +187,10 @@ def test_stencil_factory_numpy_comparison_from_origin_domain(
         compare_to_numpy=enabled,
         dace_config=dace_config,
     )
-    indexing = GridIndexing(
-        domain=(12, 12, 79),
-        n_halo=3,
+    indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=12, ny=12, nz=79, n_halo=3, data_dimensions={}, backend=backend
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,
@@ -216,9 +220,10 @@ def test_stencil_factory_numpy_comparison_runs_without_exceptions(backend: str) 
         compare_to_numpy=True,
         dace_config=dace_config,
     )
-    indexing = GridIndexing(
-        domain=(12, 12, 79),
-        n_halo=3,
+    indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=12, ny=12, nz=79, n_halo=3, data_dimensions={}, backend=backend
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,

@@ -12,6 +12,7 @@ from ndsl import (
     GridIndexing,
     StencilConfig,
     StencilFactory,
+    SubtileGridSizer,
 )
 from ndsl.constants import X_DIM, Y_DIM, Z_DIM
 from ndsl.dsl.gt4py import PARALLEL, computation, interval
@@ -29,9 +30,10 @@ def test_skip_passes_becomes_oir_pipeline() -> None:
     config = StencilConfig(
         compilation_config=CompilationConfig(backend=backend), dace_config=dace_config
     )
-    grid_indexing = GridIndexing(
-        domain=(4, 4, 7),
-        n_halo=3,
+    grid_indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=4, ny=4, nz=7, n_halo=3, data_dimensions={}, backend=backend
+        ),
         south_edge=False,
         north_edge=False,
         west_edge=False,

@@ -249,8 +249,16 @@ class MetricTerms:
                 self.CARTESIAN_DIM: 3,
             }
         )
+        subtile_grid_sizer = SubtileGridSizer(
+            quantity_factory.sizer.nx,
+            quantity_factory.sizer.ny,
+            quantity_factory.sizer.nz,
+            n_halo=quantity_factory.sizer.n_halo,
+            data_dimensions=quantity_factory.sizer.data_dimensions,
+            backend=quantity_factory.backend,
+        )
         self._grid_indexing = GridIndexing.from_sizer_and_communicator(
-            self.quantity_factory.sizer, self._comm
+            subtile_grid_sizer, self._comm
         )
         self._grid_dims = [
             X_INTERFACE_DIM,

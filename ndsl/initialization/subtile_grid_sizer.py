@@ -20,6 +20,7 @@ class SubtileGridSizer(GridSizer):
         backend: str | None = None,
     ) -> None:
         super().__init__(nx, ny, nz, n_halo, data_dimensions)
+        self.backend = backend
 
         if backend is None:
             warnings.warn(

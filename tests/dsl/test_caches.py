@@ -14,6 +14,7 @@ from ndsl import (
     GridIndexing,
     StencilConfig,
     StencilFactory,
+    SubtileGridSizer,
 )
 from ndsl.comm.mpi import MPI
 from ndsl.dsl.dace.orchestration import orchestrate
@@ -31,9 +32,10 @@ def _build_stencil(
     backend: str, orchestrated: DaCeOrchestration
 ) -> tuple[FrozenStencil | CompareToNumpyStencil, GridIndexing, StencilConfig]:
     # Make stencil and verify it ran
-    grid_indexing = GridIndexing(
-        domain=(5, 5, 5),
-        n_halo=2,
+    grid_indexing = GridIndexing.from_sizer(
+        sizer=SubtileGridSizer(
+            nx=5, ny=5, nz=5, n_halo=2, data_dimensions={}, backend=backend
+        ),
         south_edge=True,
         north_edge=True,
         west_edge=True,

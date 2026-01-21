@@ -6,7 +6,7 @@ import inspect
 import numbers
 import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Any, cast
+from typing import Any
 
 import dace
 import numpy as np
@@ -21,7 +21,7 @@ from ndsl.comm.comm_abc import Comm
 from ndsl.comm.communicator import Communicator
 from ndsl.comm.decomposition import block_waiting_for_compilation, unblock_waiting_tiles
 from ndsl.comm.mpi import MPI
-from ndsl.constants import X_DIM, X_DIMS, Y_DIM, Y_DIMS, Z_DIM, Z_DIMS
+from ndsl.constants import X_DIMS, Y_DIMS, Z_DIMS
 from ndsl.debug import ndsl_debugger
 from ndsl.dsl.dace.orchestration import SDFGConvertible
 from ndsl.dsl.stencil_config import CompilationConfig, RunMode, StencilConfig
@@ -38,7 +38,7 @@ from ndsl.dsl.typing import (
     IntFieldIJ64,
     cast_to_index3d,
 )
-from ndsl.initialization import GridSizer, SubtileGridSizer
+from ndsl.initialization import SubtileGridSizer
 from ndsl.logging import ndsl_log
 from ndsl.quantity import Quantity
 from ndsl.quantity.field_bundle import FieldBundleType, MarkupFieldBundleType
@@ -650,6 +650,10 @@ class GridIndexing:
         north_edge: bool,
         west_edge: bool,
         east_edge: bool,
+        *,
+        k_start: int = 0,
+        backend: str | None = None,
+        _internal_call: bool = False,
     ):
         """
         Initialize a grid indexing object.
@@ -662,9 +666,24 @@ class GridIndexing:
             west_edge: whether the current rank is on the west edge of a tile
             east_edge: whether the current rank is on the east edge of a tile
         """
-        self.origin = (n_halo, n_halo, 0)
-        self.n_halo = n_halo
-        self.domain = domain
+        if not _internal_call:
+            warnings.warn(
+                "The constructor of GridIndexing is deprecated. Use `GridIndexing.from_sizer(...)` "
+                "or `GridIndexing.from_sizer_and_communicator(...)` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        self._sizer = SubtileGridSizer(
+            nx=domain[0],
+            ny=domain[1],
+            nz=domain[2],
+            n_halo=n_halo,
+            data_dimensions={},
+            backend=backend,
+        )
+        self.k_start = k_start
+
         self.south_edge = south_edge
         self.north_edge = north_edge
         self.west_edge = west_edge
@@ -672,40 +691,65 @@ class GridIndexing:
 
     @property
     def domain(self) -> Index3D:
-        return self._domain
+        return (self._sizer.nx, self._sizer.ny, self._sizer.nz)
 
-    @domain.setter
-    def domain(self, domain: Index3D) -> None:
-        self._domain = domain
-        self._sizer = SubtileGridSizer(
-            nx=domain[0],
-            ny=domain[1],
-            nz=domain[2],
-            n_halo=self.n_halo,
-            data_dimensions={},
-        )
+    @property
+    def origin(self) -> Index3D:
+        return (self.n_halo, self.n_halo, self.k_start)
+
+    @property
+    def n_halo(self) -> int:
+        return self._sizer.n_halo
 
     @classmethod
-    def from_sizer_and_communicator(
-        cls, sizer: GridSizer, comm: Communicator
+    def from_sizer(
+        cls,
+        sizer: SubtileGridSizer,
+        south_edge: bool,
+        north_edge: bool,
+        west_edge: bool,
+        east_edge: bool,
     ) -> GridIndexing:
-        # TODO: if this class is refactored to split off the *_edge booleans,
-        # this init routine can be refactored to require only a GridSizer
-        domain = cast(
-            tuple[int, int, int],
-            sizer.get_extent([X_DIM, Y_DIM, Z_DIM]),
-        )
-        south_edge = comm.tile.partitioner.on_tile_bottom(comm.rank)
-        north_edge = comm.tile.partitioner.on_tile_top(comm.rank)
-        west_edge = comm.tile.partitioner.on_tile_left(comm.rank)
-        east_edge = comm.tile.partitioner.on_tile_right(comm.rank)
+        """
+        Initialize a grid indexing object.
+
+        Args:
+            sizer: SubtileGridSizer to derive size of the compute domain
+            south_edge: whether the current rank is on the south edge of a tile
+            north_edge: whether the current rank is on the north edge of a tile
+            west_edge: whether the current rank is on the west edge of a tile
+            east_edge: whether the current rank is on the east edge of a tile
+        """
         return cls(
-            domain=domain,
+            domain=(sizer.nx, sizer.ny, sizer.nz),
             n_halo=sizer.n_halo,
             south_edge=south_edge,
             north_edge=north_edge,
             west_edge=west_edge,
             east_edge=east_edge,
+            backend=sizer.backend,
+            _internal_call=True,
+        )
+
+    @classmethod
+    def from_sizer_and_communicator(
+        cls, sizer: SubtileGridSizer, comm: Communicator
+    ) -> GridIndexing:
+        # TODO: if this class is refactored to split off the *_edge booleans,
+        # this init routine can be refactored to require only a GridSizer
+        south_edge = comm.tile.partitioner.on_tile_bottom(comm.rank)
+        north_edge = comm.tile.partitioner.on_tile_top(comm.rank)
+        west_edge = comm.tile.partitioner.on_tile_left(comm.rank)
+        east_edge = comm.tile.partitioner.on_tile_right(comm.rank)
+        return cls(
+            domain=(sizer.nx, sizer.ny, sizer.nz),
+            n_halo=sizer.n_halo,
+            south_edge=south_edge,
+            north_edge=north_edge,
+            west_edge=west_edge,
+            east_edge=east_edge,
+            backend=sizer.backend,
+            _internal_call=True,
         )
 
     @property
@@ -869,7 +913,7 @@ class GridIndexing:
             origin: origin of the computation
             domain: shape of the computation
         """
-        origin = self._origin_from_dims(dims)
+        origin = list(self._sizer.get_origin(dims))
         domain = list(self._sizer.get_extent(dims))
         for i, n in enumerate(halos):
             origin[i] -= n
@@ -894,17 +938,6 @@ class GridIndexing:
         origin = (self.isc, self.jsc, klevel)
         domain = (self.iec + 1 - self.isc, self.jec + 1 - self.jsc, 1)
         return (origin, domain)
-
-    def _origin_from_dims(self, dims: Iterable[str]) -> list[int]:
-        return_origin = []
-        for dim in dims:
-            if dim in X_DIMS:
-                return_origin.append(self.origin[0])
-            elif dim in Y_DIMS:
-                return_origin.append(self.origin[1])
-            elif dim in Z_DIMS:
-                return_origin.append(self.origin[2])
-        return return_origin
 
     def get_shape(
         self, dims: Sequence[str], halos: Sequence[int] = tuple()
@@ -960,16 +993,17 @@ class GridIndexing:
                 "nk can be at most the size of the vertical domain minus k_start"
             )
 
-        new = GridIndexing(
+        return GridIndexing(
             self.domain[:2] + (nk,),
             self.n_halo,
             self.south_edge,
             self.north_edge,
             self.west_edge,
             self.east_edge,
+            k_start=self.origin[2] + k_start,
+            backend=self._sizer.backend,
+            _internal_call=True,
         )
-        new.origin = self.origin[:2] + (self.origin[2] + k_start,)
-        return new
 
 
 class StencilFactory:
