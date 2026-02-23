@@ -1,10 +1,10 @@
 from typing import Collection
 
-import dace.sdfg.analysis.schedule_tree.treenodes as stree
+from dace.sdfg.analysis.schedule_tree import treenodes as tn
 
 
 def swap_node_position_in_tree(
-    top_node: stree.ScheduleTreeScope, child_node: stree.ScheduleTreeScope
+    top_node: tn.ScheduleTreeScope, child_node: tn.ScheduleTreeScope
 ) -> None:
     """Top node becomes child, child becomes top node"""
     # Take refs before swap
@@ -24,7 +24,7 @@ def swap_node_position_in_tree(
     top_children.remove(top_node)
 
 
-def detect_cycle(nodes: list[stree.ScheduleTreeNode], visited: set) -> None:
+def detect_cycle(nodes: list[tn.ScheduleTreeNode], visited: set) -> None:
     """Detect the cycles in the tree."""
     # Dev note: isn't there a DaCe tool for this?!
     for n in nodes:
@@ -36,8 +36,8 @@ def detect_cycle(nodes: list[stree.ScheduleTreeNode], visited: set) -> None:
 
 
 def list_index(
-    collection: Collection[stree.ScheduleTreeNode],
-    node: stree.ScheduleTreeNode,
+    collection: Collection[tn.ScheduleTreeNode],
+    node: tn.ScheduleTreeNode,
 ) -> int:
     """Check if node is in list with "is" operator."""
     # compare with "is" to get memory comparison. ".index()" uses value comparison
