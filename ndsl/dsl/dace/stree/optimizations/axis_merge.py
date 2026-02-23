@@ -203,7 +203,7 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
             return self._push_ifelse_down(node, nodes)
 
         if isinstance(node, tn.ForScope):
-            return self._for_merge(node, nodes)
+            return self._for_merge(node)
 
         if isinstance(node, tn.TaskletNode):
             return self._push_tasklet_down(node, nodes)
@@ -214,11 +214,7 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
         ndsl_log.debug(f"  (╯°□°)╯︵ ┻━┻: can't merge {type(node)}. Recursion ends.")
         return 0
 
-    def _for_merge(
-        self,
-        the_for_scope: tn.ForScope,
-        nodes: list[tn.ScheduleTreeNode],
-    ) -> int:
+    def _for_merge(self, the_for_scope: tn.ForScope) -> int:
         merged = 0
 
         if _is_axis_for(the_for_scope, self.axis):
