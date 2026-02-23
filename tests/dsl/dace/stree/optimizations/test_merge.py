@@ -13,17 +13,17 @@ from tests.dsl.dace.stree import StreeOptimization, get_SDFG_and_purge
 
 def stencil(in_field: FloatField, out_field: FloatField) -> None:
     with computation(PARALLEL), interval(...):
-        out_field = in_field + 1
+        out_field = in_field + 1.0
 
 
 def stencil_with_self_assign(in_field: FloatField, out_field: FloatField) -> None:
     with computation(PARALLEL), interval(...):
-        out_field = out_field + in_field + 2
+        out_field = out_field + in_field + 2.0
 
 
 def stencil_with_forward_K(in_field: FloatField, out_field: FloatField) -> None:
     with computation(FORWARD), interval(...):
-        out_field = in_field + 3
+        out_field = in_field + 3.0
 
 
 def stencil_with_different_intervals(
@@ -31,17 +31,17 @@ def stencil_with_different_intervals(
     out_field: FloatField,
 ) -> None:
     with computation(PARALLEL), interval(1, None):
-        out_field = in_field + 5
+        out_field = in_field + 5.0
 
 
 def stencil_with_buffer_read_offset_in_K(
     in_field: FloatField, out_field: FloatField, buffer: FloatField
 ) -> None:
     with computation(PARALLEL), interval(1, None):
-        buffer = in_field + 6
+        buffer = in_field + 6.0
 
     with computation(PARALLEL), interval(1, None):
-        out_field = buffer[K - 1] + 7
+        out_field = buffer[K - 1] + 7.0
 
 
 class OrchestratedCode:
@@ -83,43 +83,29 @@ class OrchestratedCode:
 
         self._buffer = quantity_factory.zeros([I_DIM, J_DIM, K_DIM], units="")
 
-    def trivial_merge(
-        self,
-        in_field: FloatField,
-        out_field: FloatField,
-    ) -> None:
+    def trivial_merge(self, in_field: FloatField, out_field: FloatField) -> None:
         self.stencil(in_field, out_field)
         self.stencil(in_field, out_field)
 
     def missing_merge_of_forscope_and_map(
-        self,
-        in_field: FloatField,
-        out_field: FloatField,
+        self, in_field: FloatField, out_field: FloatField
     ) -> None:
         self.stencil(in_field, out_field)
         self.stencil_with_forward_K(in_field, out_field)
         self.stencil(in_field, out_field)
 
     def block_merge_when_dependencies_are_found(
-        self,
-        in_field: FloatField,
-        out_field: FloatField,
+        self, in_field: FloatField, out_field: FloatField
     ) -> None:
         self.stencil(in_field, out_field)
         self.stencil_with_buffer_read_offset_in_K(in_field, out_field, self._buffer)
 
-    def overcompute_merge(
-        self,
-        in_field: FloatField,
-        out_field: FloatField,
-    ) -> None:
+    def overcompute_merge(self, in_field: FloatField, out_field: FloatField) -> None:
         self.stencil(in_field, out_field)
         self.stencil_with_different_intervals(in_field, out_field)
 
     def push_non_cartesian_for(
-        self,
-        in_field: FloatField,
-        out_field: FloatField,
+        self, in_field: FloatField, out_field: FloatField
     ) -> None:
         self.stencil(in_field, out_field)
         for _ in dace.nounroll(range(2)):
@@ -200,7 +186,7 @@ class TestStreeMergeMapsIJK:
             if isinstance(me, dace.nodes.MapEntry)
         ]
         # ⚠️ WE EXPECT A FAILURE TO MERGE K (because of index) ⚠️
-        assert len(all_maps) == 4  # Should be all dmerged = 3
+        assert len(all_maps) == 4  # Should be all merged = 3
 
     def test_block_merge_when_dependencies_are_found(
         self, code: OrchestratedCode, factories: Factories

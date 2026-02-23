@@ -20,6 +20,7 @@ class CleanUpScheduleTree(tn.ScheduleNodeTransformer):
         to_remove = [
             child for child in node.children if isinstance(child, tn.StateBoundaryNode)
         ]
+
         for boundary in to_remove:
             self._removed_state_boundaries += 1
             node.children.remove(boundary)
@@ -50,6 +51,7 @@ class CleanUpScheduleTree(tn.ScheduleNodeTransformer):
 
     def visit_IfScope(self, node: tn.IfScope) -> tn.IfScope:
         self._remove_state_boundaries_from_children(node)
+
         for child in node.children:
             self.visit(child)
 
