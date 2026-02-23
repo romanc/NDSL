@@ -419,7 +419,7 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
 
         return 1
 
-    def _merge(self, node: tn.ScheduleTreeRoot | tn.ScheduleTreeScope) -> int:
+    def _merge(self, node: tn.ScheduleTreeScope) -> int:
         merged = 0
 
         if __debug__:
