@@ -187,7 +187,7 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
     def _merge_node(
         self,
         node: tn.ScheduleTreeNode,
-        nodes: list[tn.ScheduleTreeNode],
+        siblings: list[tn.ScheduleTreeNode],
     ) -> int:
         """Direct code to the correct resolver for the node (e.g. visitor)
 
@@ -197,16 +197,16 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
         """
 
         if isinstance(node, tn.MapScope):
-            return self._map_overcompute_merge(node, nodes)
+            return self._map_overcompute_merge(node, siblings)
 
         if PUSH_IFSCOPE_DOWNWARD and isinstance(node, tn.IfScope):
-            return self._push_ifelse_down(node, nodes)
+            return self._push_ifelse_down(node, siblings)
 
         if isinstance(node, tn.ForScope):
             return self._for_merge(node)
 
         if isinstance(node, tn.TaskletNode):
-            return self._push_tasklet_down(node, nodes)
+            return self._push_tasklet_down(node, siblings)
 
         if isinstance(node, tn.ControlFlowScope):
             return self._default_control_flow(node)
@@ -455,9 +455,7 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
         """
         overall_merged = 0
         passes_apply = 0
-        i = 0
         while True:
-            i += 1
             previous_children = copy.deepcopy(node.children)
             try:
                 merged = self._merge(node)
