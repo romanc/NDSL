@@ -202,6 +202,13 @@ def _build_sdfg(
                 CPUPipeline(passes=passes).run(stree, verbose=True)
 
             with DaCeProgress(config, "Schedule Tree: go back to SDFG"):
+                # NOTE
+                # By cleaning the schedule tree above, we loose the inserted state boundaries.
+                # Now that we are going back to SDFG, we don't know anymore where they were and
+                # things that shouldn't be parallel are now parallel. This is an issue that we
+                # need to undo. We should probably start be putting less StateBoundary nodes in
+                # DaCe's SDFG -> stree bridge. With control flow graphs, can like get rid of
+                # some.
                 sdfg = stree.as_sdfg(skip={"ScalarToSymbolPromotion"})
 
         # Make the transients array persistents
