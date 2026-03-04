@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ndsl import QuantityFactory, StencilFactory
+from ndsl import DaCeOrchestration, QuantityFactory, StencilFactory
 from ndsl.config import Backend
 from ndsl.constants import I_DIM, J_DIM, K_DIM
 from ndsl.dsl.gt4py import PARALLEL, computation, interval
@@ -75,4 +75,22 @@ def test_boilerplate_non_dace_based_orchestration_raises():
     with pytest.raises(ValueError, match="Only .* backends can be orchestrated."):
         get_factories_single_tile_orchestrated(
             nx=5, ny=5, nz=2, nhalo=1, backend=Backend.python()
+        )
+
+
+def test_boilerplate_non_existing_layout_raise() -> None:
+    from ndsl.boilerplate import _get_factories
+
+    bad_topology = "my_topology"
+    with pytest.raises(
+        NotImplementedError, match=f"Topology {bad_topology} is not implemented."
+    ):
+        _get_factories(
+            nx=1,
+            ny=2,
+            nz=3,
+            nhalo=0,
+            backend=Backend.python(),
+            orchestration=DaCeOrchestration.BuildAndRun,
+            topology=bad_topology,
         )
