@@ -76,7 +76,7 @@ class Backend:
     on the frontend code. Additionally, it gives a hint toward the macro-strategy
     for loop ordering (IJK, KJI, etc.) or a more broad intent (debug, numpy).
 
-    For convenience, shorcuts are given to the most common needs (
+    For convenience, shortcuts are given to the most common needs (
     `backend_python`, `backend_cpu`, `backend_gpu`).
     """
 
@@ -113,7 +113,7 @@ class Backend:
             and gt4py_backend.storage_info["device"] != "gpu"
         ):
             raise ValueError(
-                f"NDSL backend requested ({self._humanly_readable}) tagets GPU,"
+                f"NDSL backend requested ({self._humanly_readable}) targets GPU,"
                 f"but requests a non-GPU backend from GT4Py ({self.as_gt4py()})."
             )
 
