@@ -516,11 +516,14 @@ def _save_datatree(
 
         # Try to save inputs
         try:
-            data_vars[f"{varname}_input"] = xr.DataArray(
-                np.stack([in_data[varname] for in_data in inputs_list]),
-                dims=("rank",) + tuple([f"{d}_in" for d in dims]),
-                attrs=attrs,
-            )
+            if varname == "tracers":
+                print("TMP: Skipping tracers ...")
+            else:
+                data_vars[f"{varname}_input"] = xr.DataArray(
+                    np.stack([in_data[varname] for in_data in inputs_list]),
+                    dims=("rank",) + tuple([f"{d}_in" for d in dims]),
+                    attrs=attrs,
+                )
         except KeyError as error:
             print(f"No input data found for {error}")
 

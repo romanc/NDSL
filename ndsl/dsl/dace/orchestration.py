@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numbers
 import os
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -149,17 +148,17 @@ def _build_sdfg(
         # Fully specialize all known symbols and then propagate these changes in the simplify
         # pass that follows. This is not only a smart idea in general, but also simplifies (haha)
         # the schedule tree (optimization) roundtrip.
-        with DaCeProgress(config, "Fully specialize symbols"):
-            for my_sdfg in sdfg.all_sdfgs_recursive():
-                if my_sdfg.parent_nsdfg_node is not None:
-                    repl_dict = {}
-                    for sym, val in my_sdfg.parent_nsdfg_node.symbol_mapping.items():
-                        if isinstance(val, numbers.Number):
-                            repl_dict[sym] = val
-                    my_sdfg.replace_dict(repl_dict)
+        # with DaCeProgress(config, "Fully specialize symbols"):
+        #     for my_sdfg in sdfg.all_sdfgs_recursive():
+        #         if my_sdfg.parent_nsdfg_node is not None:
+        #             repl_dict = {}
+        #             for sym, val in my_sdfg.parent_nsdfg_node.symbol_mapping.items():
+        #                 if isinstance(val, numbers.Number):
+        #                     repl_dict[sym] = val
+        #             my_sdfg.replace_dict(repl_dict)
 
-        with DaCeProgress(config, "Simplify (1)"):
-            _simplify(sdfg)
+        # with DaCeProgress(config, "Simplify (1)"):
+        #     _simplify(sdfg)
 
         if _INTERNAL__SCHEDULE_TREE_OPTIMIZATION:
             # Here be 🐉 - but tests exists in test_optimization.py
@@ -239,8 +238,8 @@ def _build_sdfg(
             if k in sdfg_kwargs and tup[1].transient:
                 del sdfg_kwargs[k]
 
-        with DaCeProgress(config, "Simplify (2)"):
-            _simplify(sdfg)
+        # with DaCeProgress(config, "Simplify (2)"):
+        #     _simplify(sdfg)
 
         # Move all memory that can be into a pool to lower memory pressure for GPU
         # We skip this memory optimization for CPU because we don't have a memory
