@@ -63,9 +63,9 @@ class TranslateFortranData2Py:
 
     def __init__(
         self,
-        grid,
+        grid: Grid,
         stencil_factory: StencilFactory,
-        origin=utils.origin,
+        origin: tuple[int, int, int] = utils.origin,
         skip_test: bool = False,
     ):
         self.origin = origin
