@@ -18,12 +18,12 @@ def dtype(numpy):
 
 
 @pytest.fixture
-def units():
+def units() -> str:
     return "m"
 
 
 @pytest.fixture
-def layout(request):
+def layout(request: pytest.FixtureRequest) -> tuple[int, int]:
     try:
         return request.param
     except AttributeError:
@@ -31,29 +31,31 @@ def layout(request):
 
 
 @pytest.fixture
-def ranks_per_tile(layout):
+def ranks_per_tile(layout: tuple[int, int]) -> int:
     return layout[0] * layout[1]
 
 
 @pytest.fixture
-def total_ranks(ranks_per_tile):
+def total_ranks(ranks_per_tile: int) -> int:
     return 6 * ranks_per_tile
 
 
 @pytest.fixture
-def tile_partitioner(layout):
+def tile_partitioner(layout: tuple[int, int]) -> TilePartitioner:
     return TilePartitioner(layout)
 
 
 @pytest.fixture
-def cube_partitioner(tile_partitioner):
+def cube_partitioner(tile_partitioner: TilePartitioner) -> CubedSpherePartitioner:
     return CubedSpherePartitioner(tile_partitioner)
 
 
 @pytest.fixture
-def communicator_list(cube_partitioner, total_ranks):
-    shared_buffer = {}
-    return_list = []
+def communicator_list(
+    cube_partitioner: CubedSpherePartitioner, total_ranks: int
+) -> list[CubedSphereCommunicator]:
+    shared_buffer: dict = {}
+    return_list: list = []
     for rank in range(cube_partitioner.total_ranks):
         return_list.append(
             CubedSphereCommunicator(

@@ -31,7 +31,7 @@ def get_tile_communicator_list(partitioner):
 
 
 @pytest.mark.parametrize("layout", [(1, 1), (1, 2), (2, 1), (2, 2), (3, 3)])
-def test_interface_state_two_by_two_per_rank_scatter_tile(layout, numpy):
+def test_interface_state_two_by_two_per_rank_scatter_tile(layout, numpy) -> None:
     state = {
         "pos_j": Quantity(
             numpy.empty([layout[0] + 1, layout[1] + 1]),
@@ -76,7 +76,7 @@ def test_interface_state_two_by_two_per_rank_scatter_tile(layout, numpy):
 
 
 @pytest.mark.parametrize("layout", [(1, 1), (1, 2), (2, 1), (2, 2), (3, 3)])
-def test_centered_state_one_item_per_rank_scatter_tile(layout, numpy):
+def test_centered_state_one_item_per_rank_scatter_tile(layout, numpy) -> None:
     total_ranks = layout[0] * layout[1]
     state = {
         "rank": Quantity(
@@ -133,7 +133,9 @@ def test_centered_state_one_item_per_rank_scatter_tile(layout, numpy):
 
 @pytest.mark.parametrize("layout", [(1, 1), (1, 2), (2, 1), (2, 2), (3, 3)])
 @pytest.mark.parametrize("n_halo", [0, 1, 3])
-def test_centered_state_one_item_per_rank_with_halo_scatter_tile(layout, n_halo, numpy):
+def test_centered_state_one_item_per_rank_with_halo_scatter_tile(
+    layout, n_halo, numpy
+) -> None:
     extent = layout
     total_ranks = layout[0] * layout[1]
     state = {

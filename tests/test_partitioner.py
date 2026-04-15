@@ -37,7 +37,7 @@ for ranks_per_tile in (1, 4):
 @pytest.mark.parametrize(
     "rank, total_ranks, tile_index", zip(rank_list, total_rank_list, tile_index_list)
 )
-def test_get_tile_index(rank, total_ranks, tile_index):
+def test_get_tile_index(rank: int, total_ranks: int, tile_index: int) -> None:
     tile = get_tile_index(rank, total_ranks)
     assert tile == tile_index
 
@@ -65,7 +65,9 @@ for layout in ((1, 1), (1, 2), (2, 2), (2, 3)):
 @pytest.mark.parametrize(
     "rank, layout, subtile_index", zip(rank_list, layout_list, subtile_index_list)
 )
-def test_subtile_index(rank, layout, subtile_index):
+def test_subtile_index(
+    rank: int, layout: tuple[int, int], subtile_index: tuple[int, int]
+) -> None:
     partitioner = TilePartitioner(layout)
     assert partitioner.subtile_index(rank) == subtile_index
 
@@ -103,7 +105,12 @@ def test_subtile_index(rank, layout, subtile_index):
         ),
     ],
 )
-def test_tile_extent_from_rank_metadata(array_extent, array_dims, layout, tile_extent):
+def test_tile_extent_from_rank_metadata(
+    array_extent: tuple[int, ...],
+    array_dims: tuple[str, ...],
+    layout: tuple[int, int],
+    tile_extent: tuple[int, ...],
+) -> None:
     result = tile_extent_from_rank_metadata(array_dims, array_extent, layout)
     assert result == tile_extent
 

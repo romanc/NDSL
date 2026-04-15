@@ -9,7 +9,7 @@ from ndsl.dsl.gt4py import PARALLEL, Field, computation, interval
 from ndsl.quantity import Quantity, State
 
 
-def _stencil(out: Field[float]):
+def _stencil(out: Field[float]) -> None:
     with computation(PARALLEL), interval(...):
         out = out + 1
 

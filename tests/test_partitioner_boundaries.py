@@ -22,24 +22,24 @@ from ndsl.constants import (
 
 
 @pytest.fixture
-def partitioner_1_by_1():
+def partitioner_1_by_1() -> CubedSpherePartitioner:
     grid = TilePartitioner((1, 1))
     return CubedSpherePartitioner(grid)
 
 
 @pytest.fixture
-def partitioner_2_by_2():
+def partitioner_2_by_2() -> CubedSpherePartitioner:
     grid = TilePartitioner((2, 2))
     return CubedSpherePartitioner(grid)
 
 
 @pytest.fixture
-def tile_partitioner_3_by_3():
+def tile_partitioner_3_by_3() -> TilePartitioner:
     return TilePartitioner((3, 3))
 
 
 @pytest.fixture
-def partitioner_3_by_3():
+def partitioner_3_by_3() -> CubedSpherePartitioner:
     grid = TilePartitioner((3, 3))
     return CubedSpherePartitioner(grid)
 
@@ -128,7 +128,7 @@ def test_1_by_1_left_edge(
         (2, (2, 2), 1, 3),
     ],
 )
-def test_rotate_subtile_rank(rank, layout, n_clockwise_rotations, new_rank):
+def test_rotate_subtile_rank(rank, layout, n_clockwise_rotations, new_rank) -> None:
     result = rotate_subtile_rank(rank, layout, n_clockwise_rotations)
     assert result == new_rank
 
@@ -162,7 +162,9 @@ def test_rotate_subtile_rank(rank, layout, n_clockwise_rotations, new_rank):
         (23, 1, 0),
     ],
 )
-def test_2_by_2_top_edge(partitioner_2_by_2, from_rank, to_rank, n_clockwise_rotations):
+def test_2_by_2_top_edge(
+    partitioner_2_by_2, from_rank, to_rank, n_clockwise_rotations
+) -> None:
     edge = partitioner_2_by_2.boundary(NORTH, from_rank)
     assert edge.from_rank == from_rank
     assert edge.to_rank == to_rank
@@ -196,7 +198,9 @@ def test_single_3_by_3_top_edge(
     "from_rank, to_rank, n_clockwise_rotations",
     [(0, 2, 3), (1, 2, 0), (2, 4, 3), (3, 4, 0), (4, 0, 3), (5, 0, 0)],
 )
-def test_1_by_1_top_edge(partitioner_1_by_1, from_rank, to_rank, n_clockwise_rotations):
+def test_1_by_1_top_edge(
+    partitioner_1_by_1, from_rank, to_rank, n_clockwise_rotations
+) -> None:
     edge = partitioner_1_by_1.boundary(NORTH, from_rank)
     assert edge.from_rank == from_rank
     assert edge.to_rank == to_rank
@@ -352,25 +356,25 @@ def test_1_by_1_right_edge(
 
 
 @pytest.mark.parametrize("from_rank", [0, 1, 2, 3, 4, 5])
-def test_1_by_1_top_left_corner(partitioner_1_by_1, from_rank):
+def test_1_by_1_top_left_corner(partitioner_1_by_1, from_rank) -> None:
     corner = partitioner_1_by_1.boundary(NORTHWEST, from_rank)
     assert corner is None
 
 
 @pytest.mark.parametrize("from_rank", [0, 1, 2, 3, 4, 5])
-def test_1_by_1_top_right_corner(partitioner_1_by_1, from_rank):
+def test_1_by_1_top_right_corner(partitioner_1_by_1, from_rank) -> None:
     corner = partitioner_1_by_1.boundary(NORTHEAST, from_rank)
     assert corner is None
 
 
 @pytest.mark.parametrize("from_rank", [0, 1, 2, 3, 4, 5])
-def test_1_by_1_bottom_left_corner(partitioner_1_by_1, from_rank):
+def test_1_by_1_bottom_left_corner(partitioner_1_by_1, from_rank) -> None:
     corner = partitioner_1_by_1.boundary(SOUTHWEST, from_rank)
     assert corner is None
 
 
 @pytest.mark.parametrize("from_rank", [0, 1, 2, 3, 4, 5])
-def test_1_by_1_bottom_right_corner(partitioner_1_by_1, from_rank):
+def test_1_by_1_bottom_right_corner(partitioner_1_by_1, from_rank) -> None:
     corner = partitioner_1_by_1.boundary(SOUTHEAST, from_rank)
     assert corner is None
 
@@ -456,9 +460,10 @@ def test_single_3_by_3_top_left_corner(
         ((2, 2), SOUTH, 3, 1),
     ),
 )
-def test_tile_boundary(layout, boundary_type, from_rank, to_rank):
+def test_tile_boundary(layout, boundary_type, from_rank, to_rank) -> None:
     tile = TilePartitioner(layout)
     boundary = tile.boundary(boundary_type, from_rank)
+    assert boundary is not None
     assert boundary.from_rank == from_rank
     assert boundary.to_rank == to_rank
     assert boundary.n_clockwise_rotations == 0
@@ -656,11 +661,12 @@ def test_single_3_by_3_bottom_right_corner(
     assert edge.n_clockwise_rotations == n_clockwise_rotations
 
 
-def test_boundary_returns_correct_boundary_type():
+def test_boundary_returns_correct_boundary_type() -> None:
     tile = TilePartitioner((3, 3))
     partitioner = CubedSpherePartitioner(tile)
     for boundary_type in BOUNDARY_TYPES:
         boundary = partitioner.boundary(boundary_type, rank=4)  # center face
+        assert boundary is not None
         assert boundary.boundary_type == boundary_type
 
 
@@ -691,7 +697,7 @@ def test_3_by_3_difficult_cases(
 
 
 @pytest.mark.parametrize("layout", [(1, 1), (2, 2), (4, 4)])
-def test_edge_boundaries_pair(layout, subtests):
+def test_edge_boundaries_pair(layout, subtests) -> None:
     order = [WEST, NORTH, EAST, SOUTH]
     tile = TilePartitioner(layout)
     partitioner = CubedSpherePartitioner(tile)
@@ -699,12 +705,14 @@ def test_edge_boundaries_pair(layout, subtests):
         for boundary_type in EDGE_BOUNDARY_TYPES:
             with subtests.test(rank=rank, boundary_type=boundary_type):
                 out_boundary = partitioner.boundary(boundary_type, rank)
+                assert out_boundary is not None
                 in_boundary = partitioner.boundary(
                     rotate(
                         boundary_type, 2 - out_boundary.n_clockwise_rotations, order
                     ),
                     out_boundary.to_rank,
                 )
+                assert in_boundary is not None
                 assert out_boundary.to_rank == in_boundary.from_rank
                 assert in_boundary.to_rank == out_boundary.from_rank
                 assert (
@@ -714,7 +722,7 @@ def test_edge_boundaries_pair(layout, subtests):
 
 
 @pytest.mark.parametrize("layout", [(1, 1), (2, 2), (4, 4)])
-def test_corner_boundaries_pair(layout, subtests):
+def test_corner_boundaries_pair(layout, subtests) -> None:
     order = [
         NORTHWEST,
         NORTHEAST,
@@ -734,6 +742,7 @@ def test_corner_boundaries_pair(layout, subtests):
                         ),
                         out_boundary.to_rank,
                     )
+                    assert in_boundary is not None
                     assert out_boundary.to_rank == in_boundary.from_rank
                     assert in_boundary.to_rank == out_boundary.from_rank
                     assert (

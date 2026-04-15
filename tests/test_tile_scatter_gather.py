@@ -17,50 +17,50 @@ from ndsl.constants import (
 
 
 @pytest.fixture(params=[(1, 1), (3, 3)])
-def layout(request):
+def layout(request: pytest.FixtureRequest) -> tuple:
     return request.param
 
 
 @pytest.fixture(params=[0, 1, 3])
-def n_rank_halo(request):
+def n_rank_halo(request: pytest.FixtureRequest) -> int:
     return request.param
 
 
 @pytest.fixture(params=[0, 3])
-def n_tile_halo(request):
+def n_tile_halo(request: pytest.FixtureRequest) -> int:
     return request.param
 
 
 @pytest.fixture(params=["i,j", "j,i", "i_interface,j", "i,j,k", "i,j,k", "j,k,i"])
-def dims(request):
+def dims(request: pytest.FixtureRequest) -> list[str]:
     if request.param == "i,j":
         return [I_DIM, J_DIM]
-    elif request.param == "j,i":
+    if request.param == "j,i":
         return [J_DIM, I_DIM]
-    elif request.param == "i_interface,j":
+    if request.param == "i_interface,j":
         return [I_INTERFACE_DIM, J_DIM]
-    elif request.param == "i,j,k":
+    if request.param == "i,j,k":
         return [I_DIM, J_DIM, K_DIM]
-    elif request.param == "i,j,k":
+    if request.param == "i,j,k":
         return [K_DIM, J_DIM, I_DIM]
-    elif request.param == "j,k,i":
+    if request.param == "j,k,i":
         return [J_DIM, K_DIM, I_DIM]
-    else:
-        raise NotImplementedError()
+
+    raise NotImplementedError()
 
 
 @pytest.fixture
-def units():
+def units() -> str:
     return "m/s"
 
 
 @pytest.fixture
-def time():
+def time() -> datetime.datetime:
     return datetime.datetime(2000, 1, 1)
 
 
 @pytest.fixture()
-def dim_lengths(layout):
+def dim_lengths(layout: tuple) -> dict:
     return {
         I_DIM: 2 * layout[1],
         I_INTERFACE_DIM: 2 * layout[1] + 1,
@@ -72,9 +72,9 @@ def dim_lengths(layout):
 
 
 @pytest.fixture()
-def communicator_list(layout):
+def communicator_list(layout: tuple) -> list[TileCommunicator]:
     total_ranks = layout[0] * layout[1]
-    shared_buffer = {}
+    shared_buffer: dict = {}
     return_list = []
     for rank in range(total_ranks):
         return_list.append(
@@ -87,7 +87,7 @@ def communicator_list(layout):
 
 
 @pytest.fixture
-def tile_extent(dims, dim_lengths):
+def tile_extent(dims: list[str], dim_lengths: dict) -> tuple:
     return_list = []
     for dim in dims:
         return_list.append(dim_lengths[dim])
