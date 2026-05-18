@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 
 import dace
 from dace.properties import CodeBlock
@@ -110,25 +111,6 @@ def _last_node(nodes: list[tn.ScheduleTreeNode], node: tn.ScheduleTreeNode) -> b
 
 
 class ReplaceAxisSymbol(tn.ScheduleNodeVisitor):
-    def __init__(self, axis: AxisIterator) -> None:
-        self._axis = axis
-
-    def visit_MapScope(
-        self,
-        map_scope: tn.MapScope,
-        axis_replacements: dict[str, str] | None = None,
-    ) -> None:
-        if axis_replacements is None:
-            axis_replacements = {}
-
-        for index, param in enumerate(map_scope.node.params):
-            if param in axis_replacements:
-                map_scope.node.params[index] = axis_replacements[param]
-
-        # visit children
-        for child in map_scope.children:
-            self.visit(child, axis_replacements=axis_replacements)
-
     def visit_TaskletNode(
         self,
         node: tn.TaskletNode,
@@ -138,10 +120,10 @@ class ReplaceAxisSymbol(tn.ScheduleNodeVisitor):
             # Noop if there are no replacements to do.
             return
 
-        for memlets in node.in_memlets.values():
-            memlets.replace(axis_replacements)
-        for memlets in node.out_memlets.values():
-            memlets.replace(axis_replacements)
+        for memlet in itertools.chain(
+            node.in_memlets.values(), node.out_memlets.values()
+        ):
+            memlet.replace(axis_replacements)
 
 
 class CartesianAxisMerge(tn.ScheduleNodeTransformer):
@@ -385,10 +367,12 @@ class CartesianAxisMerge(tn.ScheduleNodeTransformer):
         # After merge, we need to replace the axis symbols of the second map's children
         # with the axis symbol of the first map.
         if next_node.node.map.params[0] != the_map.node.map.params[0]:
-            replacements = {next_node.node.map.params[0]: the_map.node.map.params[0]}
-            ReplaceAxisSymbol(self.axis).visit(
-                first_map, axis_replacements=replacements
-            )
+            replacements = {
+                dace.symbolic.symbol(
+                    next_node.node.map.params[0]
+                ): dace.symbolic.symbol(the_map.node.map.params[0])
+            }
+            ReplaceAxisSymbol().visit(first_map, axis_replacements=replacements)
 
         # delete now-merged second_map
         del nodes[list_index(nodes, next_node)]
