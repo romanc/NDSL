@@ -1,10 +1,10 @@
-import logging
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 import ndsl.dsl.gt4py_utils as utils
+from ndsl import ndsl_log
 from ndsl.config import Backend
 from ndsl.dsl.stencil import StencilFactory
 from ndsl.optional_imports import cupy
@@ -15,8 +15,6 @@ from ndsl.stencils.testing.savepoint import DataLoader
 
 if cupy is None:
     import numpy as cupy
-
-logger = logging.getLogger(__name__)
 
 
 def read_serialized_data(serializer, savepoint, variable):
@@ -343,14 +341,18 @@ class TranslateGrid:
 
         self.data = inputs
 
-    def _make_composite_var_storage(self, varname, data3d, shape, count):
+    def _make_composite_var_storage(
+        self, varname, data3d, shape, count, processed_keys
+    ):
         for s in range(count):
-            self.data[varname + str(s + 1)] = utils.make_storage_data(
+            name = f"{varname}{s+1}"
+            self.data[name] = utils.make_storage_data(
                 np.squeeze(data3d[:, :, s]),
                 shape,
                 origin=(0, 0, 0),
                 backend=self.backend,
             )
+            processed_keys.add(name)
 
     def _edge_vector_storage(self, varname, axis, max_shape):
         default_origin = (0, 0, 0)
@@ -391,25 +393,32 @@ class TranslateGrid:
 
     def make_grid_storage(self, pygrid):
         shape = pygrid.domain_shape_full(add=(1, 1, 1))
+        processed_keys: set[str] = set()
         for key in TranslateGrid.composite_grid_vars:
             if key in self.data:
-                self._make_composite_var_storage(key, self.data[key], shape, 9)
+                self._make_composite_var_storage(
+                    key, self.data[key], shape, 9, processed_keys
+                )
                 del self.data[key]
 
         for key in TranslateGrid.vvars:
             if key in self.data:
                 self._make_composite_vvar_storage(key, self.data[key], shape)
+                processed_keys.add(key)
 
         for key in TranslateGrid.ee_vars:
             if key in self.data:
                 self.data[key] = np.moveaxis(self.data[key], 0, 2)
                 self.data[key] = utils.make_storage_data(
                     self.data[key],
-                    (shape[0], shape[1], 3),
+                    self.data[key].shape,
+                    # (shape[0], shape[1], 3),
                     origin=(0, 0, 0),
                     backend=self.backend,
                     dtype=self.data[key].dtype,
                 )
+                processed_keys.add(key)
+
         for key, axis in TranslateGrid.edge_var_axis.items():
             if key in self.data:
                 self.data[key] = utils.make_storage_data(
@@ -421,24 +430,29 @@ class TranslateGrid:
                     backend=self.backend,
                     dtype=self.data[key].dtype,
                 )
+                processed_keys.add(key)
+
         for key, axis in TranslateGrid.edge_vect_axis.items():
             if key in self.data:
                 self._edge_vector_storage(key, axis, shape)
+                processed_keys.add(key)
 
         for key, value in self.data.items():
+            if key in processed_keys:
+                # already handled above as one of the special cases
+                continue
+
             if type(value) is np.ndarray and len(value.shape) > 0:
                 # TODO: when grid initialization model exists, may want to use
                 # it to inform this
                 istart, jstart = pygrid.horizontal_starts_from_shape(value.shape)
-                logger.debug(
-                    "Storage for Grid variable {}, {}, {}, {}".format(
-                        key, istart, jstart, value.shape
-                    )
+                ndsl_log.debug(
+                    f"Storage for Grid variable {key}, {istart}, {jstart}, {value.shape}"
                 )
                 origin = (istart, jstart, 0)
                 self.data[key] = utils.make_storage_data(
                     value,
-                    shape,
+                    shape=shape,
                     origin=origin,
                     start=origin,
                     read_only=True,

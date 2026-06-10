@@ -157,9 +157,8 @@ def make_storage_data(
             dtype=dtype,
             backend=backend,
         )
-    elif n_dims >= 4:
-        data = _make_storage_data_Nd(data, shape, start, backend=backend)
     else:
+        assert n_dims == 3
         data = _make_storage_data_3d(
             data,
             shape,

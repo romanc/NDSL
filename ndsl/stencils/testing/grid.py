@@ -495,6 +495,8 @@ class Grid:
             "ee1",
             "ee2",
             "es1",
+            "es2",
+            "ew1",
             "ew2",
             "edge_w",
             "edge_e",
