@@ -1,9 +1,9 @@
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 from f90nml import Namelist
 
-from ndsl import GridSizer
+from ndsl import GridSizer, ndsl_log
 from ndsl.comm.communicator import Communicator
 from ndsl.comm.partitioner import TilePartitioner
 from ndsl.config import Backend
@@ -482,6 +482,21 @@ class Grid:
     ) -> None:
         self._damping_coefficients = damping_coefficients
 
+    def _slice_grid_data_if_necessary(self, name: str, data: Any) -> Any:
+        grid_definition = getattr(GridDefinitions, name, None)
+        assert grid_definition is not None
+        expected_shape = self.quantity_factory.sizer.get_shape(grid_definition.dims)
+
+        if data.shape == expected_shape:
+            return data
+
+        ndsl_log.warning(
+            f"Unexpected shape for grid variable `{name}` ({data.shape} instead of {expected_shape}). "
+            "Cropping to expected shape."
+        )
+
+        return data[tuple([slice(0, size) for size in expected_shape])]
+
     @property
     def grid_data(self) -> GridData:
         if self._grid_data is not None:
@@ -491,16 +506,19 @@ class Grid:
         # in particular the vertical axis. Since we're deprecating those tests,
         # we simply "fix" those arrays here.
         clipped_data: dict[str, Quantity] = {}
-        for name in (
+        to_be_clipped = (
             "ee1",
             "ee2",
             "es1",
+            "es2",
+            "ew1",
             "ew2",
             "edge_w",
             "edge_e",
             "edge_s",
             "edge_n",
-        ):
+        )
+        for name in to_be_clipped:
             grid_defs = getattr(GridDefinitions, name, None)
             assert grid_defs is not None
 
@@ -541,12 +559,12 @@ class Grid:
                 units=GridDefinitions.lat.units,
             ),
             lon_agrid=self.quantity_factory.from_array(
-                data=self.agrid1,  # type: ignore
+                data=self._slice_grid_data_if_necessary("lon_agrid", self.agrid1),  # type: ignore
                 dims=GridDefinitions.lon_agrid.dims,
                 units=GridDefinitions.lon_agrid.units,
             ),
             lat_agrid=self.quantity_factory.from_array(
-                data=self.agrid2,  # type: ignore
+                data=self._slice_grid_data_if_necessary("lat_agrid", self.agrid2),  # type: ignore
                 dims=GridDefinitions.lat_agrid.dims,
                 units=GridDefinitions.lat_agrid.units,
             ),
@@ -556,7 +574,7 @@ class Grid:
                 units=GridDefinitions.area.units,
             ),
             area_64=self.quantity_factory.from_array(
-                data=self.area_64,  # type: ignore
+                data=self._slice_grid_data_if_necessary("area", self.area_64),  # type: ignore
                 dims=GridDefinitions.area.dims,
                 units=GridDefinitions.area.units,
                 allow_mismatch_float_precision=True,

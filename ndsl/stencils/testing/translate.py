@@ -1,13 +1,20 @@
-from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import numpy.typing as npt
 
 import ndsl.dsl.gt4py_utils as utils
-from ndsl import Backend, StencilFactory, ndsl_log
+from ndsl import Backend, Quantity, StencilFactory, ndsl_log
+from ndsl.constants import (
+    I_DIM,
+    I_INTERFACE_DIM,
+    J_DIM,
+    J_INTERFACE_DIM,
+    K_DIM,
+    K_INTERFACE_DIM,
+)
+from ndsl.grid.generation import GridDefinitions
 from ndsl.optional_imports import cupy as cp
-from ndsl.quantity import Quantity
 from ndsl.stencils.testing.grid import Grid
 from ndsl.stencils.testing.savepoint import DataLoader
 
@@ -24,7 +31,7 @@ def pad_field_in_j(field, nj: int, backend: Backend):
     return utils.tile(field[:, 0, :], (nj, 1, 1)).transpose(1, 0, 2)
 
 
-def as_numpy(value: Quantity | np.ndarray | "cp.ndarray") -> np.ndarray:
+def as_numpy(value: Union[Quantity, np.ndarray, "cp.ndarray"]) -> np.ndarray:
     if isinstance(value, Quantity):
         return value[:]
 
@@ -37,7 +44,7 @@ def as_numpy(value: Quantity | np.ndarray | "cp.ndarray") -> np.ndarray:
     raise TypeError(f"Unrecognized value type: {type(value)}")
 
 
-class TranslateFortranData2Py(ABC):
+class TranslateFortranData2Py:
     """Translate test main class
 
     The translate test will test a set of inputs and outputs, after having processed
@@ -72,7 +79,6 @@ class TranslateFortranData2Py(ABC):
         else:
             self.maxshape = self.grid.domain_shape_full(add=(1, 1, 1))
 
-    @abstractmethod
     def extra_data_load(self, data_loader: DataLoader) -> None:
         pass
 
@@ -80,7 +86,6 @@ class TranslateFortranData2Py(ABC):
         """Transform inputs to gt4py.storages specification (correct device, layout)."""
         self.make_storage_data_input_vars(inputs)
 
-    @abstractmethod
     def compute_func(self, **inputs) -> dict[str, Any] | None:
         """
         Compute function to transform the dictionary of `inputs`.
@@ -142,16 +147,20 @@ class TranslateFortranData2Py(ABC):
 
         Return: Array in the form of a dict[str, gt4py.storages]
         """
-        use_shape = list(self.maxshape)
+        use_shape = list(array.shape)
         if dummy_axes:
             for axis in dummy_axes:
                 use_shape[axis] = 1
         elif not full_shape and len(array.shape) < 3 and axis == len(array.shape) - 1:
             use_shape[1] = 1
-        start = (int(istart), int(jstart), int(kstart))
+        start = (istart, jstart, kstart)
         if len(array.shape) == 4:
-            start = (int(istart), int(jstart), int(kstart), 0)  # type: ignore
+            start = (istart, jstart, kstart, 0)  # type: ignore
             use_shape.append(array.shape[-1])
+
+        assert len(start) == len(use_shape)
+        use_shape = [size + 2 * offset for size, offset in zip(use_shape, start)]
+
         return utils.make_storage_data(
             array,
             tuple(use_shape),
@@ -328,7 +337,7 @@ class TranslateGrid:
             grid_data[field] = read_serialized_data(serializer, grid_savepoint, field)
         return cls(grid_data, rank, layout, backend=backend)
 
-    def __init__(self, inputs, rank, layout, *, backend: Backend):
+    def __init__(self, inputs, rank, layout, *, backend: Backend) -> None:
         self.backend = backend
         self.indices = {}
         self.shape_params = {}
@@ -345,17 +354,42 @@ class TranslateGrid:
 
         self.data = inputs
 
-    def _make_composite_var_storage(self, varname, data3d, shape, count):
+    def _shape_from_grid(self, grid: Grid, name: str) -> tuple[int, ...]:
+        grid_definition = getattr(GridDefinitions, name, None)
+        if grid_definition is None:
+            # fall back to previous default
+            return grid.domain_shape_full(add=(1, 1, 1))
+
+        domain = grid.domain_shape_full()
+        padding = 0 if self.backend.is_fortran_aligned() else 1
+        shape_dict = {
+            I_DIM: domain[0] + padding,
+            I_INTERFACE_DIM: domain[0] + 1,
+            J_DIM: domain[1] + padding,
+            J_INTERFACE_DIM: domain[1] + 1,
+            K_DIM: domain[2] + padding,
+            K_INTERFACE_DIM: domain[2] + 1,
+            GridDefinitions.CARTESIAN_DIM: 3,
+            GridDefinitions.LON_OR_LAT_DIM: 2,
+            GridDefinitions.TILE_DIM: 6,
+        }
+        return tuple([shape_dict[dim] for dim in grid_definition.dims])
+
+    def _make_composite_var_storage(
+        self, grid: Grid, varname: str, *, count: int
+    ) -> None:
         for s in range(count):
-            self.data[varname + str(s + 1)] = utils.make_storage_data(
-                np.squeeze(data3d[:, :, s]),
+            name = f"{varname}{s+1}"
+            shape = self._shape_from_grid(grid, name)
+            self.data[name] = utils.make_storage_data(
+                np.squeeze(self.data[varname][:, :, s]),
                 shape,
                 origin=(0, 0, 0),
                 backend=self.backend,
             )
 
-    def _edge_vector_storage(self, varname, axis, max_shape):
-        default_origin = (0, 0, 0)
+    def _edge_vector_storage(self, varname, axis, max_shape) -> None:
+        default_origin: tuple[int, ...] = (0, 0, 0)
         mask = None
         if axis == 1:
             buffer = np.zeros(max_shape[1])
@@ -377,8 +411,10 @@ class TranslateGrid:
             dtype=self.data[varname].dtype,
         )
 
-    def _make_composite_vvar_storage(self, varname, data3d, shape):
-        """This function is needed to transform vlat, vlon"""
+    def _make_composite_vvar_storage(self, grid: Grid, varname: str) -> None:
+        """This function is needed to transform vlat, vlon."""
+        data3d = self.data[varname]
+        shape = self._shape_from_grid(grid, varname)
 
         size1, size2 = data3d.shape[0:2]
         buffer = np.zeros((shape[0], shape[1], 3))
@@ -391,53 +427,68 @@ class TranslateGrid:
             dtype=self.data[varname].dtype,
         )
 
-    def make_grid_storage(self, pygrid):
-        shape = pygrid.domain_shape_full(add=(1, 1, 1))
+    def make_grid_storage(self, py_grid: Grid) -> None:
+        processed: set[str] = set()
         for key in TranslateGrid.composite_grid_vars:
             if key in self.data:
-                self._make_composite_var_storage(key, self.data[key], shape, 9)
+                self._make_composite_var_storage(py_grid, key, count=9)
                 del self.data[key]
+                processed.update([f"{key}{id}" for id in range(1, 10)])
 
         for key in TranslateGrid.vvars:
             if key in self.data:
-                self._make_composite_vvar_storage(key, self.data[key], shape)
+                self._make_composite_vvar_storage(py_grid, key)
+                processed.add(key)
 
         for key in TranslateGrid.ee_vars:
             if key in self.data:
                 self.data[key] = np.moveaxis(self.data[key], 0, 2)
+                shape = self._shape_from_grid(py_grid, key)
                 self.data[key] = utils.make_storage_data(
                     self.data[key],
-                    (shape[0], shape[1], 3),
+                    shape,
                     origin=(0, 0, 0),
                     backend=self.backend,
                     dtype=self.data[key].dtype,
                 )
+                processed.add(key)
+
         for key, axis in TranslateGrid.edge_var_axis.items():
             if key in self.data:
+                shape = self._shape_from_grid(py_grid, key)
                 self.data[key] = utils.make_storage_data(
                     self.data[key],
                     shape,
-                    start=(0, 0, pygrid.halo),
+                    start=(0, 0, py_grid.halo),
                     axis=axis,
                     read_only=True,
                     backend=self.backend,
                     dtype=self.data[key].dtype,
                 )
+                processed.add(key)
+
         for key, axis in TranslateGrid.edge_vect_axis.items():
             if key in self.data:
+                shape = self._shape_from_grid(py_grid, key)
                 self._edge_vector_storage(key, axis, shape)
+                processed.add(key)
 
         for key, value in self.data.items():
+            if key in processed:
+                # Already handled as a special case above
+                continue
+
             if type(value) is np.ndarray and len(value.shape) > 0:
                 # TODO: when grid initialization model exists, may want to use
                 # it to inform this
-                istart, jstart = pygrid.horizontal_starts_from_shape(value.shape)
+                istart, jstart = py_grid.horizontal_starts_from_shape(value.shape)
                 ndsl_log.debug(
                     "Storage for Grid variable {}, {}, {}, {}".format(
                         key, istart, jstart, value.shape
                     )
                 )
                 origin = (istart, jstart, 0)
+                shape = self._shape_from_grid(py_grid, key)
                 self.data[key] = utils.make_storage_data(
                     value,
                     shape,
@@ -449,9 +500,9 @@ class TranslateGrid:
                 )
 
     def python_grid(self):
-        pygrid = Grid(
+        py_grid = Grid(
             self.indices, self.shape_params, self.rank, self.layout, self.backend
         )
-        self.make_grid_storage(pygrid)
-        pygrid.add_data(self.data)
-        return pygrid
+        self.make_grid_storage(py_grid)
+        py_grid.add_data(self.data)
+        return py_grid
