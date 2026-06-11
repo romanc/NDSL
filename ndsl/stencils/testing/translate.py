@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
@@ -5,14 +6,10 @@ import numpy.typing as npt
 
 import ndsl.dsl.gt4py_utils as utils
 from ndsl import Backend, StencilFactory, ndsl_log
-from ndsl.optional_imports import cupy
+from ndsl.optional_imports import cupy as cp
 from ndsl.quantity import Quantity
 from ndsl.stencils.testing.grid import Grid
 from ndsl.stencils.testing.savepoint import DataLoader
-
-
-if cupy is None:
-    import numpy as cupy
 
 
 def read_serialized_data(serializer, savepoint, variable):
@@ -24,25 +21,26 @@ def read_serialized_data(serializer, savepoint, variable):
 
 def pad_field_in_j(field, nj: int, backend: Backend):
     utils.device_sync(backend)
-    outfield = utils.tile(field[:, 0, :], (nj, 1, 1)).transpose(1, 0, 2)
-    return outfield
+    return utils.tile(field[:, 0, :], (nj, 1, 1)).transpose(1, 0, 2)
 
 
-def as_numpy(value: Quantity | np.ndarray | cupy.ndarray) -> np.ndarray:
+def as_numpy(value: Quantity | np.ndarray | "cp.ndarray") -> np.ndarray:
     if isinstance(value, Quantity):
         return value[:]
-    elif isinstance(value, np.ndarray):
+
+    if isinstance(value, np.ndarray):
         return value
-    elif cupy is not None and isinstance(value, cupy.ndarray):
-        return cupy.asnumpy(value)
-    else:
-        raise TypeError(f"Unrecognized value type: {type(value)}")
+
+    if cp is not None and isinstance(value, cp.ndarray):
+        return cp.asnumpy(value)
+
+    raise TypeError(f"Unrecognized value type: {type(value)}")
 
 
-class TranslateFortranData2Py:
+class TranslateFortranData2Py(ABC):
     """Translate test main class
 
-    The translate test will will test a set of inputs and outputs, after having processed
+    The translate test will test a set of inputs and outputs, after having processed
     the inputs via the user provided `compute_func`.
     """
 
@@ -54,12 +52,13 @@ class TranslateFortranData2Py:
 
     def __init__(
         self,
-        grid,
+        grid: Grid,
         stencil_factory: StencilFactory,
-        origin=utils.origin,
+        origin: tuple[int] | None = None,
         skip_test: bool = False,
     ):
-        self.origin = origin
+        # Use given origin or copy default origin from gt4py_utils
+        self.origin = (o for o in utils.origin) if origin is None else origin
         self.stencil_factory = stencil_factory
         self.in_vars: dict[str, Any] = {"data_vars": {}, "parameters": []}
         self.out_vars: dict[str, Any] = {}
@@ -73,20 +72,26 @@ class TranslateFortranData2Py:
         else:
             self.maxshape = self.grid.domain_shape_full(add=(1, 1, 1))
 
-    def extra_data_load(self, data_loader: DataLoader):
+    @abstractmethod
+    def extra_data_load(self, data_loader: DataLoader) -> None:
         pass
 
     def setup(self, inputs) -> None:
-        """Transform inputs to gt4py.storages specification (correct device, layout)"""
+        """Transform inputs to gt4py.storages specification (correct device, layout)."""
         self.make_storage_data_input_vars(inputs)
 
+    @abstractmethod
     def compute_func(self, **inputs) -> dict[str, Any] | None:
-        """Compute function to transform the dictionary of `inputs`.
-        Must return a dictionary of updated variables"""
+        """
+        Compute function to transform the dictionary of `inputs`.
+
+        Must return a dictionary of updated variables
+        """
         raise NotImplementedError("Implement a child class compute method")
 
     def compute(self, inputs) -> dict[str, Any]:
-        """Transform inputs from NetCDF to gt4py.storages, run compute_func then slice
+        """
+        Transform inputs from NetCDF to gt4py.storages, run compute_func then slice
         the outputs based on specifications.
 
         Return: Dictionary of storages reshaped for comparison
@@ -94,12 +99,13 @@ class TranslateFortranData2Py:
         self.setup(inputs)
         return self.slice_output(self.compute_from_storage(inputs))
 
-    # assume inputs already has been turned into gt4py storages (or Quantities)
     def compute_from_storage(self, inputs) -> dict[str, Any]:
-        """Run `compute_func` and return an updated `inputs` dictionary with
+        """
+        Run `compute_func` and return an updated `inputs` dictionary with
         the returned results of `compute_func`.
 
-        Hypothesis: `inputs` are `gt4py.storages`
+        Note: This method assume `inputs` already has been turned into
+        `gt4py.storages` (or Quantities).
 
         Return: Outputs in the form of a dict[str, gt4py.storages]
         """
@@ -167,14 +173,14 @@ class TranslateFortranData2Py:
             index = varinfo[index_name]
         return index
 
-    def update_info(self, info, inputs):
+    def update_info(self, info, inputs) -> None:
         for k, v in info.items():
             if k == "serialname" or isinstance(v, list):
                 continue
             if v in inputs.keys():
                 info[k] = inputs[v]
 
-    def collect_start_indices(self, datashape, varinfo):
+    def collect_start_indices(self, datashape, varinfo) -> tuple[int, int, int]:
         istart, jstart = self.grid.horizontal_starts_from_shape(datashape)
         istart = self.get_index_from_info(varinfo, "istart", istart)
         jstart = self.get_index_from_info(varinfo, "jstart", jstart)
