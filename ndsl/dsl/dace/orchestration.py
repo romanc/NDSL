@@ -194,13 +194,14 @@ def _build_sdfg(
                     compress=True,
                 )
 
-        with DaCeProgress(config, "Simplify (1)"):
-            _simplify(sdfg)
-            if config.verbose_orchestration:
-                sdfg.save(
-                    os.path.abspath(f"{sdfg.build_folder}/01-simplify_1.sdfgz"),
-                    compress=True,
-                )
+        if not _INTERNAL__SCHEDULE_TREE_OPTIMIZATION:
+            with DaCeProgress(config, "Simplify (1)"):
+                _simplify(sdfg)
+                if config.verbose_orchestration:
+                    sdfg.save(
+                        os.path.abspath(f"{sdfg.build_folder}/01-simplify_1.sdfgz"),
+                        compress=True,
+                    )
 
         if _INTERNAL__SCHEDULE_TREE_OPTIMIZATION:
             # Here be 🐉 - but tests exists in test_optimization.py

@@ -1,7 +1,5 @@
 from collections.abc import Sequence
-from typing import Any
 
-import dace
 import numpy as np
 
 from ndsl.config import Backend
@@ -31,7 +29,7 @@ class Local(Quantity):
         # Initialize memory to obviously wrong value - Local should _not_ be expected
         # to be zero'ed.
         data[:] = 123456789
-        self._on_gpu = backend.is_gpu_backend()
+        # self._on_gpu = backend.is_gpu_backend()
 
         super().__init__(
             data,
@@ -43,8 +41,8 @@ class Local(Quantity):
             backend=backend,
         )
 
-    def __descriptor__(self) -> Any:
-        """Locals uses `Quantity.__descriptor__` and flag itself as transient."""
-        data = dace.data.create_datadescriptor(self._data)
-        data.transient = True if not self._on_gpu else False
-        return data
+    # def __descriptor__(self) -> Any:
+    #     """Locals uses `Quantity.__descriptor__` and flag itself as transient."""
+    #     data = dace.data.create_datadescriptor(self._data)
+    #     data.transient = True if not self._on_gpu else False
+    #     return data
