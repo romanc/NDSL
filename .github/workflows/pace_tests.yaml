@@ -3,6 +3,13 @@ name: "pace main tests"
 # Run these these whenever ...
 on:
   pull_request: # ... a PR is opened / updated
+    paths-ignore:
+      - '.github/**/*.md'
+      - 'docs/**'
+      - 'examples/**'
+      - 'internal/**'
+      - 'zensical.toml'
+      - 'README.md'
   merge_group: # ... the PR is added to the merge queue
   push:
     branches:
